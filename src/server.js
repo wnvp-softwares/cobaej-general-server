@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 
 const aplicacion = express();
 const PORT = process.env.PORT || 3000;
-const API_BASE = 'localhost';
+const API_BASE = process.env.URL_BASE_API;
 
 aplicacion.use(cors());
 aplicacion.use(express.json());
@@ -35,7 +35,7 @@ const iniciarServidor = async () => {
 
         aplicacion.listen(PORT, '0.0.0.0', () => {
             console.log(
-                `\nServidor corriendo correctamente\nPuerto de alojamiento: ${PORT}\nAccede en: http://${API_BASE}:${PORT}\n`
+                `\nServidor corriendo correctamente\nPuerto de alojamiento: ${PORT}\nAccede en: http://${API_BASE}\n`
             ); // Indicamos el alojamiento del servidor de manera congruente
         });
     } catch (error) {
