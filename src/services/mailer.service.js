@@ -1,12 +1,13 @@
 import nodemailer from 'nodemailer';
 import 'dotenv/config';
 
-const GMAIL_USER = process.env.EMAIL_USER;
+const GMAIL_USER = process.env.GMAIL_USER;
 const URL_BASE = process.env.URL_BASE;
 
 const transportar = nodemailer.createTransport({
     service: 'gmail',
     auth: {
+        type: 'OAuth2',
         user: GMAIL_USER,
         clientId: process.env.GMAIL_CLIENT_ID,
         clientSecret: process.env.GMAIL_CLIENT_SECRET,
@@ -17,7 +18,7 @@ const transportar = nodemailer.createTransport({
 export const enviarCodigo = async (email, codigo) => {
     try {
         await transportar.sendMail({
-            from: `"Registro al Sistema de Control Escolar Cobaej TBC #65 - SiCECOBAEJ 65" ${EMAIL_USER}`,
+            from: `"Registro al Sistema de Control Escolar Cobaej TBC #65 - SiCECOBAEJ 65" ${GMAIL_USER}`,
             to: email,
             subject: 'Código de verificación para registro en el "SiCECOBAEJ 65"',
             text: `Tu código de verificación es: ${codigo}`,
