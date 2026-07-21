@@ -83,9 +83,9 @@ METODO PARA LA CREACION Y REGISTRO DE NUEVOS ALUMNOS
 
 export const crearAlumno = async (req, res) => {
     try {
-        const { nombre, correo, clave, claveConfirmar } = req.body;
+        const { nombre, correo, numero_control, clave, claveConfirmar } = req.body;
 
-        if (!nombre || !correo || !clave || !claveConfirmar) {
+        if (!nombre || !correo || !numero_control || !clave || !claveConfirmar) {
             return res.status(400).json({
                 mensaje: 'Todos los campos son obligatorios'
             });
@@ -117,7 +117,7 @@ export const crearAlumno = async (req, res) => {
             correo: correo,
             clave: contrasenaHash,
             verificado: 0,
-            numero_control: ' ',
+            numero_control: numero_control,
             codigo_verificacion: codigo,
             fecha_ingreso: new Date(),
         });
@@ -196,7 +196,11 @@ export const loginDocente = async (req, res) => {
 
         if (!docente) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
 
-        if (!docente.verificado) return res.status(403).json({ mensaje: 'Debes verificar tu cuenta primero' });
+        if (!docente.verificado) {
+            const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+            await enviarCodigo(correo, codigo);
+            return res.status(403).json({ mensaje: 'Debes verificar tu cuenta primero', verificationRequired: true });
+        }
 
         const claveValida = await bcrypt.compare(clave, docente.clave);
 
@@ -229,12 +233,16 @@ export const loginDocente = async (req, res) => {
 
 export const loginAlumno = async (req, res) => {
     try {
-        const { correo, clave } = req.body;
+        const { correo, numero_control, clave } = req.body;
         const alumno = await Alumno.findOne({ where: { correo: correo } });
 
         if (!alumno) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
 
-        if (!alumno.verificado) return res.status(403).json({ mensaje: 'Debes verificar tu cuenta primero' });
+        if (!alumno.verificado) {
+            const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+            await enviarCodigo(correo, codigo);
+            return res.status(403).json({ mensaje: 'Debes verificar tu cuenta primero', verificationRequired: true });
+        }
 
         const claveValida = await bcrypt.compare(clave, alumno.clave);
 
@@ -254,6 +262,7 @@ export const loginAlumno = async (req, res) => {
                 id: alumno.id,
                 nombre: alumno.nombre,
                 correo: alumno.correo,
+                numero_control: alumno.numero_control,
                 imagen: alumno.imagen
             },
             tipo: 'alumno',
