@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { Op } from 'sequelize';
 import { generarToken } from '../services/jwt.service.js';
 import { enviarCodigo } from '../services/mailer.service.js';
-import { Docente, Alumno } from '../models/index.js';
+import { ClaveDocente, Docente, Alumno } from '../models/index.js';
 
 /* ------------------------------------------------------------------------------------------
 METODO PARA LA CREACION Y REGISTRO DE NUEVOS DOCENTES
@@ -10,9 +10,9 @@ METODO PARA LA CREACION Y REGISTRO DE NUEVOS DOCENTES
 
 export const crearDocente = async (req, res) => {
     try {
-        const { nombre, correo, clave, claveConfirmar } = req.body;
+        const { nombre, correo, clave_registro, clave, claveConfirmar } = req.body;
 
-        if (!nombre || !correo || !clave || !claveConfirmar) {
+        if (!nombre || !correo || !clave_registro || !clave || !claveConfirmar) {
             return res.status(400).json({
                 mensaje: 'Todos los campos son obligatorios'
             });
@@ -24,6 +24,7 @@ export const crearDocente = async (req, res) => {
             }
         });
 
+
         if (usuarioExistente) {
             return res.status(400).json({
                 mensaje: 'El nombre de usuario o el correo ya están registrados y en uso'
@@ -33,6 +34,18 @@ export const crearDocente = async (req, res) => {
         if (clave !== claveConfirmar) {
             return res.status(400).json({
                 mensaje: 'Las contraseñas no coinciden'
+            });
+        }
+
+        const claveDocenteExiste = await ClaveDocente.findOne({
+            where: {
+                [Op.or]: [{ clave: clave_registro }]
+            }
+        });
+
+        if (!claveDocenteExiste) {
+            return res.statur(400).json({
+                mensaje: 'No existe la clave docente ingresada'
             });
         }
 

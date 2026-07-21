@@ -9,6 +9,7 @@ import Horario from './Horario.model.js';
 import Asistencia from './Asistencia.model.js';
 import Actividad from './Actividad.model.js';
 import Calificacion from './Calificacion.model.js';
+import ClaveDocente from './ClaveRegistro.model.js';
 
 // --- Asociaciones ---
 
@@ -65,6 +66,7 @@ Calificacion.belongsTo(MateriaActiva, { foreignKey: 'materia_activa_id' });
 // =====================================================================================
 
 export {
+    ClaveDocente,
     Docente, 
     Alumno, 
     Materia, 
