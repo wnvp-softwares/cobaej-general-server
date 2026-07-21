@@ -44,7 +44,7 @@ export const crearDocente = async (req, res) => {
         });
 
         if (!claveDocenteExiste) {
-            return res.statur(400).json({
+            return res.status(400).json({
                 mensaje: 'No existe la clave docente ingresada'
             });
         }

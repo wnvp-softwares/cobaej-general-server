@@ -18,7 +18,7 @@ const transportar = nodemailer.createTransport({
 export const enviarCodigo = async (email, codigo) => {
     try {
         await transportar.sendMail({
-            from: `"Registro al Sistema de Control Escolar Cobaej TBC #65 - SiCECOBAEJ 65" ${GMAIL_USER}`,
+            from: `"SiCECOBAEJ 65" <${GMAIL_USER}>`,
             to: email,
             subject: 'Código de verificación para registro en el "SiCECOBAEJ 65"',
             text: `Tu código de verificación es: ${codigo}`,
@@ -64,9 +64,7 @@ export const enviarCodigo = async (email, codigo) => {
             `,
         });
     } catch (error) {
-        console.error(
-            'Error al enviar codigo de verificacion en servicio de email: /services/mailer.service.js\n', error.message || error
-        );
-        return false;
+        console.error('Error al enviar codigo en mailer.service.js:', error.message || error);
+        throw error;
     }
 };
