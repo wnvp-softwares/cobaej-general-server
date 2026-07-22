@@ -61,7 +61,11 @@ export const crearDocente = async (req, res) => {
             horas_disponibles: 20,
         });
 
+        console.log('A punto de enviar codigo de seguridad...');
+
         await enviarCodigo(correo, codigo);
+
+        console.log('Enviado!');
 
         return res.status(201).json({
             mensaje: 'Usuario creado con éxito. Revisa tu bandeja para el código de verificación',

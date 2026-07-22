@@ -16,6 +16,8 @@ const transportar = nodemailer.createTransport({
 });
 
 export const enviarCodigo = async (email, codigo) => {
+    console.log('Saludos desde mailer! Casi se envia...');
+
     try {
         await transportar.sendMail({
             from: `"SiCECOBAEJ 65" <${GMAIL_USER}>`,
@@ -63,6 +65,8 @@ export const enviarCodigo = async (email, codigo) => {
                 </table>
             `,
         });
+
+        console.log('Desde mailer avisamos: Se envió!');
     } catch (error) {
         console.error('Error al enviar codigo en mailer.service.js:', error.message || error);
         throw error;
