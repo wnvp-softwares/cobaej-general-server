@@ -13,9 +13,7 @@ export const crearDocente = async (req, res) => {
         const { nombre, correo, clave_registro, clave, claveConfirmar } = req.body;
 
         if (!nombre || !correo || !clave_registro || !clave || !claveConfirmar) {
-            return res.status(400).json({
-                mensaje: 'Todos los campos son obligatorios'
-            });
+            return res.status(400).json({ mensaje: 'Todos los campos son obligatorios' });
         }
 
         const usuarioExistente = await Docente.findOne({
@@ -24,29 +22,20 @@ export const crearDocente = async (req, res) => {
             }
         });
 
-
         if (usuarioExistente) {
-            return res.status(400).json({
-                mensaje: 'El nombre de usuario o el correo ya están registrados y en uso'
-            });
+            return res.status(400).json({ mensaje: 'El nombre de usuario o el correo ya están registrados y en uso' });
         }
 
         if (clave !== claveConfirmar) {
-            return res.status(400).json({
-                mensaje: 'Las contraseñas no coinciden'
-            });
+            return res.status(400).json({ mensaje: 'Las contraseñas no coinciden' });
         }
 
         const claveDocenteExiste = await ClaveDocente.findOne({
-            where: {
-                [Op.or]: [{ clave: clave_registro }]
-            }
+            where: { clave: clave_registro }
         });
 
         if (!claveDocenteExiste) {
-            return res.status(400).json({
-                mensaje: 'No existe la clave docente ingresada'
-            });
+            return res.status(400).json({ mensaje: 'No existe la clave docente ingresada' });
         }
 
         const codigo = Math.floor(100000 + Math.random() * 900000).toString();
@@ -61,11 +50,7 @@ export const crearDocente = async (req, res) => {
             horas_disponibles: 20,
         });
 
-        console.log('A punto de enviar codigo de seguridad...');
-
         await enviarCodigo(correo, codigo);
-
-        console.log('Enviado!');
 
         return res.status(201).json({
             mensaje: 'Usuario creado con éxito. Revisa tu bandeja para el código de verificación',
@@ -75,9 +60,7 @@ export const crearDocente = async (req, res) => {
 
     } catch (error) {
         console.error('Error al crear nuevo Docente en auth.controller.js:\n', error.message || error);
-        return res.status(500).json({
-            mensaje: 'Error interno del servidor al crear nuevo Docente'
-        });
+        return res.status(500).json({ mensaje: 'Error interno del servidor al crear nuevo Docente' });
     }
 };
 
@@ -90,27 +73,21 @@ export const crearAlumno = async (req, res) => {
         const { nombre, correo, numero_control, clave, claveConfirmar } = req.body;
 
         if (!nombre || !correo || !numero_control || !clave || !claveConfirmar) {
-            return res.status(400).json({
-                mensaje: 'Todos los campos son obligatorios'
-            });
+            return res.status(400).json({ mensaje: 'Todos los campos son obligatorios' });
         }
 
         const usuarioExistente = await Alumno.findOne({
             where: {
-                [Op.or]: [{ correo: correo }, { nombre: nombre }]
+                [Op.or]: [{ correo: correo }, { nombre: nombre }, { numero_control: numero_control }]
             }
         });
 
         if (usuarioExistente) {
-            return res.status(400).json({
-                mensaje: 'El nombre de usuario o el correo ya están registrados y en uso'
-            });
+            return res.status(400).json({ mensaje: 'El nombre de usuario, correo o número de control ya están registrados' });
         }
 
         if (clave !== claveConfirmar) {
-            return res.status(400).json({
-                mensaje: 'Las contraseñas no coinciden'
-            });
+            return res.status(400).json({ mensaje: 'Las contraseñas no coinciden' });
         }
 
         const codigo = Math.floor(100000 + Math.random() * 900000).toString();
@@ -136,9 +113,7 @@ export const crearAlumno = async (req, res) => {
 
     } catch (error) {
         console.error('Error al crear nuevo Alumno en auth.controller.js:\n', error.message || error);
-        return res.status(500).json({
-            mensaje: 'Error interno del servidor al crear nuevo Alumno'
-        });
+        return res.status(500).json({ mensaje: 'Error interno del servidor al crear nuevo Alumno' });
     }
 };
 
@@ -159,13 +134,13 @@ export const verificarCodigo = async (req, res) => {
 
         if (usuario.codigo_verificacion === codigo) {
             usuario.verificado = 1;
-            usuario.codigo_verificacion = '';
+            usuario.codigo_verificacion = null;
             await usuario.save();
 
-            // Creamos un payload limpio para firmar tu JWT
             const payload = {
                 id: usuario.id,
                 nombre: usuario.nombre,
+                tipo: tipo
             };
 
             const token = generarToken(payload);
@@ -202,8 +177,12 @@ export const loginDocente = async (req, res) => {
 
         if (!docente.verificado) {
             const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+
+            docente.codigo_verificacion = codigo;
+            await docente.save();
+
             await enviarCodigo(correo, codigo);
-            return res.status(403).json({ mensaje: 'Debes verificar tu cuenta primero', verificationRequired: true });
+            return res.status(403).json({ mensaje: 'Debes verificar tu cuenta primero. Te enviamos un nuevo código.', verificationRequired: true });
         }
 
         const claveValida = await bcrypt.compare(clave, docente.clave);
@@ -238,14 +217,24 @@ export const loginDocente = async (req, res) => {
 export const loginAlumno = async (req, res) => {
     try {
         const { correo, numero_control, clave } = req.body;
-        const alumno = await Alumno.findOne({ where: { correo: correo } });
+
+        const alumno = await Alumno.findOne({
+            where: {
+                correo: correo,
+                numero_control: numero_control
+            }
+        });
 
         if (!alumno) return res.status(400).json({ mensaje: 'Credenciales inválidas' });
 
         if (!alumno.verificado) {
             const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+
+            alumno.codigo_verificacion = codigo;
+            await alumno.save();
+
             await enviarCodigo(correo, codigo);
-            return res.status(403).json({ mensaje: 'Debes verificar tu cuenta primero', verificationRequired: true });
+            return res.status(403).json({ mensaje: 'Debes verificar tu cuenta primero. Te enviamos un nuevo código.', verificationRequired: true });
         }
 
         const claveValida = await bcrypt.compare(clave, alumno.clave);
