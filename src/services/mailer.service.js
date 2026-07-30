@@ -62,7 +62,7 @@ export const enviarCodigo = async (email, codigo) => {
 
                             <p style="color: #E2E8F0; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
                                 ¡Hola! ¿Estás por completar tu registro a la plataforma <strong>SiCECOBAEJ</strong>?<br>
-                                ¡Aquí tienes tu código de seguridad y verificación!
+                                Aquí tienes tu código de seguridad y verificación.
                             </p>
 
                             <div style="margin: 30px 0;">
@@ -70,6 +70,10 @@ export const enviarCodigo = async (email, codigo) => {
                                     ${codigo}
                                 </span>
                             </div>
+
+                            <p style="color: #CBD5E1; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">
+                                Este código es de un solo uso y expirará en 5 minutos.
+                            </p>
 
                             <p style="color: #94A3B8; font-size: 14px; margin: 30px 0 0 0;">
                                 ¿No hiciste registro? 

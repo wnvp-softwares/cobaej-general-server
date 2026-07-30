@@ -11,7 +11,21 @@ import Actividad from './Actividad.model.js';
 import Calificacion from './Calificacion.model.js';
 import ClaveDocente from './ClaveRegistro.model.js';
 
-// --- Asociaciones ---
+/* ------------------------------------------------------------------------------------------
+ASOCIACIONES ENTRE MODELOS
+------------------------------------------------------------------------------------------ */
+
+// Docente <-> ClaveDocente
+Docente.hasOne(ClaveDocente, {
+    foreignKey: 'docente_id',
+    as: 'claveDocente',
+    onDelete: 'SET NULL'
+});
+ClaveDocente.belongsTo(Docente, {
+    foreignKey: 'docente_id',
+    as: 'docente'
+});
+// =====================================================================================
 
 // Periodo -> Grupo
 PeriodoEscolar.hasMany(Grupo, { foreignKey: 'periodo_id' });
