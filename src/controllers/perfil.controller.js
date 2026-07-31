@@ -17,6 +17,17 @@ const CAMPOS_SENSIBLES = [
 ];
 
 /* ------------------------------------------------------------------------------------------
+METODO PARA OCULTAR LA PRIMERA MITAD DE UN NUMERO DE CONTROL
+------------------------------------------------------------------------------------------ */
+
+const ocultarNumeroControl = (numeroControl) => {
+    const valor = String(numeroControl || '');
+    const caracteresOcultos = Math.ceil(valor.length / 2);
+
+    return `${'•'.repeat(caracteresOcultos)}${valor.slice(caracteresOcultos)}`;
+};
+
+/* ------------------------------------------------------------------------------------------
 METODO PARA OBTENER EL MODELO CORRESPONDIENTE AL USUARIO AUTENTICADO
 ------------------------------------------------------------------------------------------ */
 
@@ -53,6 +64,47 @@ const construirPerfil = (usuario, tipo) => {
             : null;
         perfil.requiere_configuracion_inicial = !usuario.periodo_ingreso_id
             || !inscripcionActual;
+    }
+
+    return perfil;
+};
+
+/* ------------------------------------------------------------------------------------------
+METODO PARA CONSTRUIR UN PERFIL AJENO RESPETANDO LA PRIVACIDAD POR ROL
+------------------------------------------------------------------------------------------ */
+
+const construirPerfilConsultado = (usuario, tipo, solicitante) => {
+    const perfil = {
+        id: usuario.id,
+        nombre: usuario.nombre,
+        imagen: usuario.imagen,
+        tipo
+    };
+
+    if (tipo === 'docente') {
+        perfil.correo = usuario.correo;
+        perfil.horas_disponibles = usuario.horas_disponibles;
+        return perfil;
+    }
+
+    const inscripcionActual = usuario.inscripciones?.[0] || null;
+    const esPerfilPropio = solicitante.tipo === 'alumno'
+        && String(solicitante.id) === String(usuario.id);
+    const puedeVerDatosCompletos = solicitante.tipo === 'docente'
+        || esPerfilPropio;
+
+    perfil.ciclo_ingreso = usuario.periodoIngreso?.nombre_ciclo || null;
+    perfil.numero_control = puedeVerDatosCompletos
+        ? usuario.numero_control
+        : ocultarNumeroControl(usuario.numero_control);
+    perfil.es_perfil_propio = esPerfilPropio;
+
+    if (puedeVerDatosCompletos) {
+        perfil.correo = usuario.correo;
+        perfil.semestre_actual = inscripcionActual?.grupo?.grado_semestre || null;
+        perfil.grupo_actual = inscripcionActual?.grupo
+            ? `${inscripcionActual.grupo.grado_semestre}${inscripcionActual.grupo.division}`
+            : null;
     }
 
     return perfil;
@@ -128,6 +180,52 @@ export const obtenerPerfilPropio = async (req, res) => {
     } catch (error) {
         console.error(
             'Error al obtener el perfil propio en perfil.controller.js:\n',
+            error.message || error
+        );
+        return res.status(500).json({
+            mensaje: 'Error interno del servidor al obtener el perfil'
+        });
+    }
+};
+
+/* ------------------------------------------------------------------------------------------
+METODO PARA OBTENER EL PERFIL PERMITIDO DE OTRO USUARIO
+------------------------------------------------------------------------------------------ */
+
+export const obtenerPerfilConsultado = async (req, res) => {
+    try {
+        const tipo = req.params.tipo;
+        const usuarioId = String(req.params.id || '').trim();
+        const Modelo = obtenerModeloUsuario(tipo);
+        const usuarioIdValido = /^[1-9]\d*$/.test(usuarioId);
+
+        if (!Modelo || !usuarioIdValido) {
+            return res.status(400).json({
+                mensaje: 'El perfil solicitado no es válido'
+            });
+        }
+
+        const usuario = await obtenerUsuarioConPerfil(
+            Modelo,
+            usuarioId,
+            tipo
+        );
+
+        if (!usuario) {
+            return res.status(404).json({ mensaje: 'Perfil no encontrado' });
+        }
+
+        return res.status(200).json({
+            mensaje: 'Perfil obtenido correctamente',
+            usuario: construirPerfilConsultado(
+                usuario,
+                tipo,
+                req.usuario
+            )
+        });
+    } catch (error) {
+        console.error(
+            'Error al obtener un perfil consultado en perfil.controller.js:\n',
             error.message || error
         );
         return res.status(500).json({
