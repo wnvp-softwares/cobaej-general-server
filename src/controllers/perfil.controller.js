@@ -1,4 +1,10 @@
-import { Alumno, Docente } from '../models/index.js';
+import {
+    Alumno,
+    Docente,
+    Grupo,
+    HistorialInscripcion,
+    PeriodoEscolar
+} from '../models/index.js';
 import { subirArchivoSupabase } from '../services/storage.service.js';
 
 const CAMPOS_SENSIBLES = [
@@ -38,10 +44,52 @@ const construirPerfil = (usuario, tipo) => {
     }
 
     if (tipo === 'alumno') {
-        perfil.fecha_ingreso = usuario.fecha_ingreso;
+        const inscripcionActual = usuario.inscripciones?.[0] || null;
+
+        perfil.ciclo_ingreso = usuario.periodoIngreso?.nombre_ciclo || null;
+        perfil.semestre_actual = inscripcionActual?.grupo?.grado_semestre || null;
+        perfil.grupo_actual = inscripcionActual?.grupo
+            ? `${inscripcionActual.grupo.grado_semestre}${inscripcionActual.grupo.division}`
+            : null;
+        perfil.requiere_configuracion_inicial = !usuario.periodo_ingreso_id
+            || !inscripcionActual;
     }
 
     return perfil;
+};
+
+/* ------------------------------------------------------------------------------------------
+METODO PARA CONSULTAR UN USUARIO CON LA INFORMACION NECESARIA PARA SU PERFIL
+------------------------------------------------------------------------------------------ */
+
+const obtenerUsuarioConPerfil = async (Modelo, id, tipo) => {
+    if (tipo !== 'alumno') {
+        return Modelo.findByPk(id);
+    }
+
+    return Modelo.findByPk(id, {
+        include: [
+            {
+                model: PeriodoEscolar,
+                as: 'periodoIngreso',
+                attributes: ['id', 'nombre_ciclo'],
+                required: false
+            },
+            {
+                model: HistorialInscripcion,
+                as: 'inscripciones',
+                attributes: ['id', 'periodo_id'],
+                separate: true,
+                limit: 1,
+                order: [['created_at', 'DESC']],
+                include: [{
+                    model: Grupo,
+                    as: 'grupo',
+                    attributes: ['id', 'grado_semestre', 'division']
+                }]
+            }
+        ]
+    });
 };
 
 /* ------------------------------------------------------------------------------------------
@@ -67,7 +115,7 @@ export const obtenerPerfilPropio = async (req, res) => {
             return res.status(400).json({ mensaje: 'Tipo de usuario inválido' });
         }
 
-        const usuario = await Modelo.findByPk(id);
+        const usuario = await obtenerUsuarioConPerfil(Modelo, id, tipo);
 
         if (!usuario) {
             return res.status(404).json({ mensaje: 'Perfil no encontrado' });
@@ -107,7 +155,7 @@ export const actualizarPerfilPropio = async (req, res) => {
             });
         }
 
-        const usuario = await Modelo.findByPk(id);
+        const usuario = await obtenerUsuarioConPerfil(Modelo, id, tipo);
 
         if (!usuario) {
             return res.status(404).json({ mensaje: 'Perfil no encontrado' });

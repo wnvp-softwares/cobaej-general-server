@@ -63,3 +63,31 @@ export const validarVerificacion = (req, res, next) => {
     req.usuario = decoded;
     return next();
 };
+
+/* ------------------------------------------------------------------------------------------
+METODO PARA PERMITIR UNICAMENTE PETICIONES DE CUENTAS DOCENTES
+------------------------------------------------------------------------------------------ */
+
+export const validarDocente = (req, res, next) => {
+    if (!req.usuario || req.usuario.tipo !== 'docente') {
+        return res.status(403).json({
+            mensaje: 'Esta operación está disponible únicamente para docentes'
+        });
+    }
+
+    return next();
+};
+
+/* ------------------------------------------------------------------------------------------
+METODO PARA PERMITIR UNICAMENTE PETICIONES DE CUENTAS DE ALUMNOS
+------------------------------------------------------------------------------------------ */
+
+export const validarAlumno = (req, res, next) => {
+    if (!req.usuario || req.usuario.tipo !== 'alumno') {
+        return res.status(403).json({
+            mensaje: 'Esta operación está disponible únicamente para alumnos'
+        });
+    }
+
+    return next();
+};

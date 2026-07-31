@@ -24,7 +24,15 @@ Alumno.init({
         defaultValue: 0,
         validate: { min: 0, max: 5 }
     },
-    fecha_ingreso: { type: DataTypes.DATEONLY, allowNull: false },
+    periodo_ingreso_id: {
+        type: DataTypes.BIGINT,
+        allowNull: true
+    },
+    created_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW
+    },
 }, {
     sequelize,
     modelName: 'Alumno',

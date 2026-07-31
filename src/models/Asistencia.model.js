@@ -3,10 +3,19 @@ import sequelize from '../configs/database.config.js';
 
 class Asistencia extends Model { }
 
+/* ------------------------------------------------------------------------------------------
+DEFINICION DEL MODELO PARA LAS ASISTENCIAS
+------------------------------------------------------------------------------------------ */
+
 Asistencia.init({
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
     fecha: { type: DataTypes.DATEONLY, allowNull: false },
     estado: { type: DataTypes.ENUM('Presente', 'Ausente', 'Retardo', 'Justificado'), allowNull: false }
-}, { sequelize, modelName: 'Asistencia', tableName: 'asistencias' });
+}, {
+    sequelize,
+    modelName: 'Asistencia',
+    tableName: 'asistencias',
+    timestamps: false
+});
 
 export default Asistencia;

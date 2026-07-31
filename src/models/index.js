@@ -28,68 +28,173 @@ ClaveDocente.belongsTo(Docente, {
 // =====================================================================================
 
 // Periodo -> Grupo
-PeriodoEscolar.hasMany(Grupo, { foreignKey: 'periodo_id' });
-Grupo.belongsTo(PeriodoEscolar, { foreignKey: 'periodo_id' });
+PeriodoEscolar.hasMany(Grupo, {
+    foreignKey: 'periodo_id',
+    as: 'grupos'
+});
+Grupo.belongsTo(PeriodoEscolar, {
+    foreignKey: 'periodo_id',
+    as: 'periodo'
+});
 // =====================================================================================
 
-// Alumno <-> Grupo (a través de HistorialInscripcion)
-Alumno.hasMany(HistorialInscripcion, { foreignKey: 'alumno_id' });
-HistorialInscripcion.belongsTo(Alumno, { foreignKey: 'alumno_id' });
-
-Grupo.hasMany(HistorialInscripcion, { foreignKey: 'grupo_id' });
-HistorialInscripcion.belongsTo(Grupo, { foreignKey: 'grupo_id' });
+// Periodo de ingreso -> Alumno
+PeriodoEscolar.hasMany(Alumno, {
+    foreignKey: 'periodo_ingreso_id',
+    as: 'alumnosIngreso'
+});
+Alumno.belongsTo(PeriodoEscolar, {
+    foreignKey: 'periodo_ingreso_id',
+    as: 'periodoIngreso'
+});
 // =====================================================================================
 
-// MateriaActiva
-Materia.hasMany(MateriaActiva, { foreignKey: 'materia_id' });
-MateriaActiva.belongsTo(Materia, { foreignKey: 'materia_id' });
+// Alumno <-> Grupo por medio del historial de inscripciones
+Alumno.hasMany(HistorialInscripcion, {
+    foreignKey: 'alumno_id',
+    as: 'inscripciones'
+});
+HistorialInscripcion.belongsTo(Alumno, {
+    foreignKey: 'alumno_id',
+    as: 'alumno'
+});
 
-Docente.hasMany(MateriaActiva, { foreignKey: 'docente_id' });
-MateriaActiva.belongsTo(Docente, { foreignKey: 'docente_id' });
+Grupo.hasMany(HistorialInscripcion, {
+    foreignKey: 'grupo_id',
+    as: 'inscripciones'
+});
+HistorialInscripcion.belongsTo(Grupo, {
+    foreignKey: 'grupo_id',
+    as: 'grupo'
+});
 
-Grupo.hasMany(MateriaActiva, { foreignKey: 'grupo_id' });
-MateriaActiva.belongsTo(Grupo, { foreignKey: 'grupo_id' });
+PeriodoEscolar.hasMany(HistorialInscripcion, {
+    foreignKey: 'periodo_id',
+    as: 'inscripciones'
+});
+HistorialInscripcion.belongsTo(PeriodoEscolar, {
+    foreignKey: 'periodo_id',
+    as: 'periodo'
+});
+// =====================================================================================
 
-PeriodoEscolar.hasMany(MateriaActiva, { foreignKey: 'periodo_id' });
-MateriaActiva.belongsTo(PeriodoEscolar, { foreignKey: 'periodo_id' });
+// Docente <-> Materia por medio de MateriaActiva
+Materia.hasMany(MateriaActiva, {
+    foreignKey: 'materia_id',
+    as: 'asignaciones'
+});
+MateriaActiva.belongsTo(Materia, {
+    foreignKey: 'materia_id',
+    as: 'materia'
+});
+
+Docente.hasMany(MateriaActiva, {
+    foreignKey: 'docente_id',
+    as: 'asignaciones'
+});
+MateriaActiva.belongsTo(Docente, {
+    foreignKey: 'docente_id',
+    as: 'docente'
+});
 // =====================================================================================
 
 // Horarios
-MateriaActiva.hasMany(Horario, { foreignKey: 'materia_activa_id' });
-Horario.belongsTo(MateriaActiva, { foreignKey: 'materia_activa_id' });
+MateriaActiva.hasMany(Horario, {
+    foreignKey: 'materia_activa_id',
+    as: 'horarios'
+});
+Horario.belongsTo(MateriaActiva, {
+    foreignKey: 'materia_activa_id',
+    as: 'asignacion'
+});
+
+Grupo.hasMany(Horario, {
+    foreignKey: 'grupo_id',
+    as: 'horarios'
+});
+Horario.belongsTo(Grupo, {
+    foreignKey: 'grupo_id',
+    as: 'grupo'
+});
+
+PeriodoEscolar.hasMany(Horario, {
+    foreignKey: 'periodo_id',
+    as: 'horarios'
+});
+Horario.belongsTo(PeriodoEscolar, {
+    foreignKey: 'periodo_id',
+    as: 'periodo'
+});
 // =====================================================================================
 
 // Asistencias
 Horario.hasMany(Asistencia, { foreignKey: 'horario_id' });
 Asistencia.belongsTo(Horario, { foreignKey: 'horario_id' });
 
-HistorialInscripcion.hasMany(Asistencia, { foreignKey: 'historial_inscripcion_id' });
-Asistencia.belongsTo(HistorialInscripcion, { foreignKey: 'historial_inscripcion_id' });
+HistorialInscripcion.hasMany(Asistencia, {
+    foreignKey: 'historial_inscripcion_id'
+});
+Asistencia.belongsTo(HistorialInscripcion, {
+    foreignKey: 'historial_inscripcion_id'
+});
 // =====================================================================================
 
 // Actividades
-MateriaActiva.hasMany(Actividad, { foreignKey: 'materia_activa_id' });
-Actividad.belongsTo(MateriaActiva, { foreignKey: 'materia_activa_id' });
+MateriaActiva.hasMany(Actividad, {
+    foreignKey: 'materia_activa_id',
+    as: 'actividades'
+});
+Actividad.belongsTo(MateriaActiva, {
+    foreignKey: 'materia_activa_id',
+    as: 'asignacion'
+});
+
+Grupo.hasMany(Actividad, {
+    foreignKey: 'grupo_id',
+    as: 'actividades'
+});
+Actividad.belongsTo(Grupo, {
+    foreignKey: 'grupo_id',
+    as: 'grupo'
+});
+
+PeriodoEscolar.hasMany(Actividad, {
+    foreignKey: 'periodo_id',
+    as: 'actividades'
+});
+Actividad.belongsTo(PeriodoEscolar, {
+    foreignKey: 'periodo_id',
+    as: 'periodo'
+});
+// =====================================================================================
 
 // Calificaciones
-HistorialInscripcion.hasMany(Calificacion, { foreignKey: 'historial_inscripcion_id' });
-Calificacion.belongsTo(HistorialInscripcion, { foreignKey: 'historial_inscripcion_id' });
+HistorialInscripcion.hasMany(Calificacion, {
+    foreignKey: 'historial_inscripcion_id'
+});
+Calificacion.belongsTo(HistorialInscripcion, {
+    foreignKey: 'historial_inscripcion_id'
+});
 
-MateriaActiva.hasMany(Calificacion, { foreignKey: 'materia_activa_id' });
-Calificacion.belongsTo(MateriaActiva, { foreignKey: 'materia_activa_id' });
+MateriaActiva.hasMany(Calificacion, {
+    foreignKey: 'materia_activa_id'
+});
+Calificacion.belongsTo(MateriaActiva, {
+    foreignKey: 'materia_activa_id'
+});
 // =====================================================================================
 
 export {
     ClaveDocente,
-    Docente, 
-    Alumno, 
-    Materia, 
-    PeriodoEscolar, 
+    Docente,
+    Alumno,
+    Materia,
+    PeriodoEscolar,
     Grupo,
-    HistorialInscripcion, 
-    MateriaActiva, 
-    Horario, 
+    HistorialInscripcion,
+    MateriaActiva,
+    Horario,
     Asistencia,
-    Actividad, 
+    Actividad,
     Calificacion
 };

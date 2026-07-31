@@ -108,7 +108,7 @@ const construirUsuarioPublico = (usuario, tipo) => {
     }
 
     if (tipo === 'alumno') {
-        datos.fecha_ingreso = usuario.fecha_ingreso;
+        datos.requiere_configuracion_inicial = !usuario.periodo_ingreso_id;
     }
 
     return datos;
@@ -314,8 +314,7 @@ export const crearAlumno = async (req, res) => {
             correo,
             clave: contrasenaHash,
             verificado: false,
-            numero_control: numeroControl,
-            fecha_ingreso: new Date()
+            numero_control: numeroControl
         });
     } catch (error) {
         console.error(
