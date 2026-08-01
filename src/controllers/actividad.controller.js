@@ -98,10 +98,19 @@ export const crearActividad = async (req, res) => {
         if (transaction) await transaction.rollback();
         await eliminarMaterialesPrivados(rutasSubidas);
         console.error('Error al crear actividad:', error.message || error);
-        const mensajeControlado = error instanceof SyntaxError || error.message?.includes('rúbrica')
+        const esErrorValidacion = error instanceof SyntaxError
+            || error.message?.includes('rúbrica');
+        const status = error.statusCode || (esErrorValidacion ? 400 : 500);
+        const mensajeControlado = error.codigo === 'STORAGE_NO_DISPONIBLE'
             ? error.message
-            : 'No fue posible crear la actividad';
-        return res.status(400).json({ mensaje: mensajeControlado });
+            : esErrorValidacion
+                ? error.message
+                : 'No fue posible crear la actividad';
+
+        return res.status(status).json({
+            mensaje: mensajeControlado,
+            codigo: error.codigo || 'ERROR_ACTIVIDAD'
+        });
     }
 };
 

@@ -21,6 +21,26 @@ import {
 const router = express.Router();
 
 /* --------------------------------------------------------
+METODO PARA PROCESAR MATERIALES Y RESPONDER ERRORES DE MULTER EN JSON
+-------------------------------------------------------- */
+
+const procesarMaterialesActividad = (req, res, next) => {
+    uploadMateriales.array('archivos', 5)(req, res, (error) => {
+        if (!error) return next();
+
+        const mensajes = {
+            LIMIT_FILE_SIZE: 'Cada archivo debe pesar como máximo 10 MB.',
+            LIMIT_FILE_COUNT: 'Puedes adjuntar un máximo de cinco archivos.'
+        };
+
+        return res.status(400).json({
+            mensaje: mensajes[error.code] || error.message || 'No fue posible procesar los archivos.',
+            codigo: error.code || 'ARCHIVO_INVALIDO'
+        });
+    });
+};
+
+/* --------------------------------------------------------
 RUTAS PARA CONSULTAR, CREAR E INSCRIBIRSE A CURSOS
 -------------------------------------------------------- */
 
@@ -39,7 +59,7 @@ router.post(
     '/:id/actividades',
     validarAuth,
     validarDocente,
-    uploadMateriales.array('archivos', 5),
+    procesarMaterialesActividad,
     crearActividad
 );
 router.get('/:id/actividades/:actividadId', validarAuth, obtenerActividad);

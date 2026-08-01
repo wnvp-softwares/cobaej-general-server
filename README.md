@@ -5,8 +5,8 @@ API de control escolar construida con Node.js, Express, Sequelize, PostgreSQL y 
 ## Puesta en marcha
 
 1. Ejecuta `cobaej_control_postgres_cursos.sql` en PostgreSQL. El archivo elimina y reconstruye todas las estructuras de la aplicación y, por lo tanto, también elimina sus datos actuales.
-2. Crea en Supabase Storage un bucket privado llamado `materiales-academicos`.
-3. Configura `SUPABASE_MATERIALES_BUCKET=materiales-academicos` si deseas declarar el nombre explícitamente.
+2. Configura `SUPABASE_MATERIALES_BUCKET=materiales-academicos` y utiliza una `SUPABASE_KEY` de servidor con permisos administrativos de Storage.
+3. El servidor creará automáticamente el bucket privado si todavía no existe. También puedes crearlo manualmente desde Supabase.
 4. Ejecuta `pnpm install`.
 5. Inicia desarrollo con `pnpm dev` o producción con `pnpm start`.
 
@@ -30,3 +30,5 @@ Las actividades pendientes no se incorporan al cálculo. Un cero debe registrars
 ## Materiales de actividades
 
 Los docentes pueden adjuntar hasta cinco archivos PDF, JPG, PNG o WEBP de 10 MB cada uno. El servidor almacena únicamente la ruta privada y entrega enlaces firmados temporales después de comprobar el acceso al curso.
+
+No utilices una clave pública o `anon` como `SUPABASE_KEY` del servidor. La clave debe permanecer únicamente en Render y nunca formar parte del cliente.
