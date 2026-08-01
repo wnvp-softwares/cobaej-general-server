@@ -1,28 +1,30 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../configs/database.config.js';
 
-class Actividad extends Model { }
+class Curso extends Model { }
 
 /* ------------------------------------------------------------------------------------------
-DEFINICION DEL MODELO PARA LAS ACTIVIDADES ACADEMICAS
+DEFINICION DEL MODELO PARA LOS CURSOS ABIERTOS POR GRUPO Y PERIODO
 ------------------------------------------------------------------------------------------ */
 
-Actividad.init({
+Curso.init({
     id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
-    unidad_curso_id: { type: DataTypes.BIGINT, allowNull: false },
+    materia_id: { type: DataTypes.BIGINT, allowNull: false },
+    grupo_id: { type: DataTypes.BIGINT, allowNull: false },
+    periodo_id: { type: DataTypes.BIGINT, allowNull: false },
     creado_por_docente_id: { type: DataTypes.BIGINT, allowNull: false },
-    titulo: { type: DataTypes.STRING(150), allowNull: false },
-    descripcion: { type: DataTypes.TEXT },
-    fecha_inicio: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
-    fecha_cierre: { type: DataTypes.DATE, allowNull: false },
-    valor_maximo: { type: DataTypes.DECIMAL(7, 2), allowNull: false },
+    estado: {
+        type: DataTypes.ENUM('Activo', 'Cerrado', 'Archivado'),
+        allowNull: false,
+        defaultValue: 'Activo'
+    },
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW }
 }, {
     sequelize,
-    modelName: 'Actividad',
-    tableName: 'actividades',
+    modelName: 'Curso',
+    tableName: 'cursos',
     timestamps: false
 });
 
-export default Actividad;
+export default Curso;

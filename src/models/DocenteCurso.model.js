@@ -1,24 +1,23 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../configs/database.config.js';
 
-class Horario extends Model { }
+class DocenteCurso extends Model { }
 
 /* ------------------------------------------------------------------------------------------
-DEFINICION DEL MODELO PARA LOS HORARIOS DE CLASE
+DEFINICION DEL MODELO PARA LA RELACION ENTRE DOCENTES Y CURSOS
 ------------------------------------------------------------------------------------------ */
 
-Horario.init({
+DocenteCurso.init({
     id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
     curso_id: { type: DataTypes.BIGINT, allowNull: false },
-    dia_semana: { type: DataTypes.ENUM('Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'), allowNull: false },
-    hora_inicio: { type: DataTypes.TIME, allowNull: false },
-    hora_fin: { type: DataTypes.TIME, allowNull: false },
-    aula: { type: DataTypes.STRING(50) }
+    materia_id: { type: DataTypes.BIGINT, allowNull: false },
+    docente_id: { type: DataTypes.BIGINT, allowNull: false },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW }
 }, {
     sequelize,
-    modelName: 'Horario',
-    tableName: 'horarios',
+    modelName: 'DocenteCurso',
+    tableName: 'docentes_cursos',
     timestamps: false
 });
 
-export default Horario;
+export default DocenteCurso;

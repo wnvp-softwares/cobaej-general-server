@@ -1,24 +1,23 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../configs/database.config.js';
 
-class Horario extends Model { }
+class UnidadCurso extends Model { }
 
 /* ------------------------------------------------------------------------------------------
-DEFINICION DEL MODELO PARA LOS HORARIOS DE CLASE
+DEFINICION DEL MODELO PARA LAS TRES UNIDADES DE CADA CURSO
 ------------------------------------------------------------------------------------------ */
 
-Horario.init({
+UnidadCurso.init({
     id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
     curso_id: { type: DataTypes.BIGINT, allowNull: false },
-    dia_semana: { type: DataTypes.ENUM('Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'), allowNull: false },
-    hora_inicio: { type: DataTypes.TIME, allowNull: false },
-    hora_fin: { type: DataTypes.TIME, allowNull: false },
-    aula: { type: DataTypes.STRING(50) }
+    numero: { type: DataTypes.SMALLINT, allowNull: false },
+    nombre: { type: DataTypes.STRING(80), allowNull: false },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW }
 }, {
     sequelize,
-    modelName: 'Horario',
-    tableName: 'horarios',
+    modelName: 'UnidadCurso',
+    tableName: 'unidades_curso',
     timestamps: false
 });
 
-export default Horario;
+export default UnidadCurso;

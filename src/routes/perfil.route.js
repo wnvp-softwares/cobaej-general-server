@@ -1,7 +1,6 @@
 import express from 'express';
 import {
     actualizarPerfilPropio,
-    obtenerPerfilConsultado,
     obtenerPerfilPropio
 } from '../controllers/perfil.controller.js';
 import { upload } from '../configs/multer.config.js';
@@ -36,12 +35,6 @@ router.patch(
     procesarImagenPerfil,
     actualizarPerfilPropio
 );
-
-/* --------------------------------------------------------
-RUTA PROTEGIDA PARA CONSULTAR EL PERFIL PERMITIDO DE OTRO USUARIO
--------------------------------------------------------- */
-
-router.get('/:tipo/:id', validarAuth, obtenerPerfilConsultado);
 
 /* --------------------------------------------------------
 EXPORTACION DE RUTAS

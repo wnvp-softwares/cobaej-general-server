@@ -1,35 +1,91 @@
 import { supabase } from '../configs/supabaseClient.js';
 
-/**
- * Suba un archivo en buffer desde Multer hacia Supabase Storage
- * @param {Express.Multer.File} file - Objeto de archivo entregado por Multer
- * @param {string} carpeta - Nombre de la carpeta interna (ej: 'docentes', 'alumnos')
- * @returns {Promise<string>} URL pública del archivo subido
- */
-export const subirArchivoSupabase = async (file, carpeta = 'general') => {
-    if (!file) return null;
+const BUCKET_PUBLICO = process.env.SUPABASE_UPLOADS_BUCKET || 'uploads';
+const BUCKET_MATERIALES = process.env.SUPABASE_MATERIALES_BUCKET || 'materiales-academicos';
 
-    // Generar un nombre único para evitar colisiones
-    const sufijoUnico = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const nombreLimpio = file.originalname.replace(/\s+/g, '_');
-    const rutaDestino = `${carpeta}/${sufijoUnico}-${nombreLimpio}`;
+/* ------------------------------------------------------------------------------------------
+METODO PARA NORMALIZAR EL NOMBRE DE UN ARCHIVO ANTES DE ALMACENARLO
+------------------------------------------------------------------------------------------ */
 
-    // 1. Subir el buffer del archivo a Supabase Storage
-    const { data, error } = await supabase.storage
-        .from('uploads') // Debe coincidir con el nombre de tu bucket en Supabase
-        .upload(rutaDestino, file.buffer, {
-            contentType: file.mimetype,
-            upsert: false
-        });
+const limpiarNombreArchivo = (nombre) => nombre
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]/g, '_');
+
+/* ------------------------------------------------------------------------------------------
+METODO PARA GENERAR UNA RUTA UNICA DENTRO DE SUPABASE STORAGE
+------------------------------------------------------------------------------------------ */
+
+const generarRuta = (archivo, carpeta) => {
+    const sufijo = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    return `${carpeta}/${sufijo}-${limpiarNombreArchivo(archivo.originalname)}`;
+};
+
+/* ------------------------------------------------------------------------------------------
+METODO PARA SUBIR UNA IMAGEN PUBLICA DE PERFIL A SUPABASE STORAGE
+------------------------------------------------------------------------------------------ */
+
+export const subirArchivoSupabase = async (archivo, carpeta = 'general') => {
+    if (!archivo) return null;
+
+    const rutaDestino = generarRuta(archivo, carpeta);
+    const { error } = await supabase.storage.from(BUCKET_PUBLICO).upload(
+        rutaDestino,
+        archivo.buffer,
+        { contentType: archivo.mimetype, upsert: false }
+    );
 
     if (error) {
         throw new Error(`Error al subir imagen a Supabase Storage: ${error.message}`);
     }
 
-    // 2. Obtener y retornar la URL pública
-    const { data: publicUrlData } = supabase.storage
-        .from('uploads')
-        .getPublicUrl(rutaDestino);
+    return supabase.storage.from(BUCKET_PUBLICO).getPublicUrl(rutaDestino).data.publicUrl;
+};
 
-    return publicUrlData.publicUrl;
+/* ------------------------------------------------------------------------------------------
+METODO PARA SUBIR UN MATERIAL PRIVADO DE REFERENCIA DE UNA ACTIVIDAD
+------------------------------------------------------------------------------------------ */
+
+export const subirMaterialPrivado = async (archivo, cursoId) => {
+    const rutaDestino = generarRuta(archivo, `cursos/${cursoId}/actividades`);
+    const { error } = await supabase.storage.from(BUCKET_MATERIALES).upload(
+        rutaDestino,
+        archivo.buffer,
+        { contentType: archivo.mimetype, upsert: false }
+    );
+
+    if (error) {
+        throw new Error(`No fue posible guardar el material: ${error.message}`);
+    }
+
+    return rutaDestino;
+};
+
+/* ------------------------------------------------------------------------------------------
+METODO PARA GENERAR UNA URL TEMPORAL DE DESCARGA PARA UN MATERIAL AUTORIZADO
+------------------------------------------------------------------------------------------ */
+
+export const obtenerUrlFirmadaMaterial = async (ruta, segundos = 900) => {
+    const { data, error } = await supabase.storage
+        .from(BUCKET_MATERIALES)
+        .createSignedUrl(ruta, segundos);
+
+    if (error) {
+        throw new Error(`No fue posible generar el enlace del material: ${error.message}`);
+    }
+
+    return data.signedUrl;
+};
+
+/* ------------------------------------------------------------------------------------------
+METODO PARA ELIMINAR MATERIALES PRIVADOS CUANDO UNA OPERACION NO SE COMPLETA
+------------------------------------------------------------------------------------------ */
+
+export const eliminarMaterialesPrivados = async (rutas = []) => {
+    if (!rutas.length) return;
+
+    const { error } = await supabase.storage.from(BUCKET_MATERIALES).remove(rutas);
+    if (error) {
+        console.error('No fue posible limpiar materiales de Storage:', error.message);
+    }
 };
