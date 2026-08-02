@@ -549,6 +549,155 @@ export const guardarCeldaHorario = async (req, res) => {
 };
 
 /* ------------------------------------------------------------------------------------------
+METODO PARA REEMPLAZAR EL HORARIO COMPLETO DE UN GRUPO EN UNA SOLA TRANSACCION
+------------------------------------------------------------------------------------------ */
+
+export const guardarHorarioGrupoLote = async (req, res) => {
+    const grupoId = normalizarId(req.params.grupoId);
+    const celdasRecibidas = Array.isArray(req.body.celdas) ? req.body.celdas : null;
+    if (!grupoId || !celdasRecibidas) {
+        return res.status(400).json({ mensaje: 'Envía un grupo válido y el arreglo completo de celdas' });
+    }
+
+    const celdas = celdasRecibidas.map((celda) => ({
+        dia_semana: String(celda.dia_semana || ''),
+        modulo_horario_id: normalizarId(celda.modulo_horario_id),
+        docente_curso_id: normalizarId(celda.docente_curso_id),
+        aula: String(celda.aula || '').trim().slice(0, 50) || null
+    }));
+    if (celdas.some((celda) => !DIAS_CLASE.includes(celda.dia_semana)
+        || !celda.modulo_horario_id || !celda.docente_curso_id)) {
+        return res.status(400).json({ mensaje: 'El horario contiene días, módulos o asignaciones no válidos' });
+    }
+
+    const clavesCeldas = celdas.map((celda) => `${celda.dia_semana}:${celda.modulo_horario_id}`);
+    if (new Set(clavesCeldas).size !== clavesCeldas.length) {
+        return res.status(400).json({ mensaje: 'El horario contiene más de una clase en la misma celda' });
+    }
+
+    const transaction = await sequelize.transaction();
+    try {
+        const periodo = await obtenerPeriodoActivo(transaction);
+        const grupo = periodo ? await Grupo.findOne({
+            where: { id: grupoId, periodo_id: periodo.id },
+            transaction,
+            lock: transaction.LOCK.UPDATE
+        }) : null;
+        if (!periodo || !grupo) {
+            await transaction.rollback();
+            return res.status(400).json({ mensaje: 'El grupo no pertenece al ciclo escolar activo' });
+        }
+
+        const [asignaciones, modulos] = await Promise.all([
+            sequelize.query(`
+                SELECT docente_curso.id AS docente_curso_id,
+                    docente_curso.docente_id, docente_curso.curso_id,
+                    docente.horas_disponibles, materia.horas_semanales
+                FROM docentes_cursos AS docente_curso
+                INNER JOIN cursos AS curso ON curso.id = docente_curso.curso_id
+                INNER JOIN docentes AS docente ON docente.id = docente_curso.docente_id
+                INNER JOIN materias AS materia ON materia.id = curso.materia_id
+                WHERE curso.grupo_id = :grupoId
+                  AND curso.periodo_id = :periodoId
+                  AND curso.estado = 'Activo'
+            `, {
+                replacements: { grupoId, periodoId: periodo.id },
+                type: QueryTypes.SELECT,
+                transaction
+            }),
+            ModuloHorario.findAll({
+                where: { periodo_id: periodo.id },
+                attributes: ['id'],
+                transaction
+            })
+        ]);
+        const asignacionesPorId = new Map(asignaciones.map((asignacion) => [String(asignacion.docente_curso_id), asignacion]));
+        const modulosValidos = new Set(modulos.map((modulo) => String(modulo.id)));
+        if (celdas.some((celda) => !asignacionesPorId.has(String(celda.docente_curso_id))
+            || !modulosValidos.has(String(celda.modulo_horario_id)))) {
+            await transaction.rollback();
+            return res.status(400).json({ mensaje: 'Una asignación o módulo no pertenece al grupo y ciclo activos' });
+        }
+
+        const conteoDocentes = new Map();
+        const conteoCursos = new Map();
+        for (const celda of celdas) {
+            const asignacion = asignacionesPorId.get(String(celda.docente_curso_id));
+            const docenteId = String(asignacion.docente_id);
+            const cursoId = String(asignacion.curso_id);
+            conteoDocentes.set(docenteId, (conteoDocentes.get(docenteId) || 0) + 1);
+            conteoCursos.set(cursoId, (conteoCursos.get(cursoId) || 0) + 1);
+            celda.asignacion = asignacion;
+        }
+
+        for (const asignacion of asignaciones) {
+            const horasCurso = conteoCursos.get(String(asignacion.curso_id)) || 0;
+            if (horasCurso > Number(asignacion.horas_semanales)) {
+                await transaction.rollback();
+                return res.status(409).json({ mensaje: 'Una materia supera sus horas semanales permitidas' });
+            }
+        }
+
+        const docentesIds = [...conteoDocentes.keys()].map(Number);
+        const ocupacionesExternas = docentesIds.length ? await Horario.findAll({
+            where: {
+                docente_id: { [Op.in]: docentesIds },
+                periodo_id: periodo.id,
+                grupo_id: { [Op.ne]: grupoId }
+            },
+            transaction,
+            lock: transaction.LOCK.UPDATE
+        }) : [];
+        const horasExternas = new Map();
+        const conflictosExternos = new Set();
+        for (const ocupacion of ocupacionesExternas) {
+            const docenteId = String(ocupacion.docente_id);
+            horasExternas.set(docenteId, (horasExternas.get(docenteId) || 0) + 1);
+            conflictosExternos.add(`${docenteId}:${ocupacion.dia_semana}:${ocupacion.modulo_horario_id}`);
+        }
+
+        for (const celda of celdas) {
+            const asignacion = celda.asignacion;
+            const docenteId = String(asignacion.docente_id);
+            if (conflictosExternos.has(`${docenteId}:${celda.dia_semana}:${celda.modulo_horario_id}`)) {
+                await transaction.rollback();
+                return res.status(409).json({ mensaje: 'Un docente está ocupado en otro grupo durante uno de los módulos seleccionados' });
+            }
+            const horasTotales = (horasExternas.get(docenteId) || 0) + (conteoDocentes.get(docenteId) || 0);
+            if (horasTotales > Number(asignacion.horas_disponibles)) {
+                await transaction.rollback();
+                return res.status(409).json({ mensaje: 'Un docente supera sus horas disponibles con este horario' });
+            }
+        }
+
+        await Horario.destroy({
+            where: { grupo_id: grupoId, periodo_id: periodo.id },
+            transaction
+        });
+        const horarios = celdas.length ? await Horario.bulkCreate(celdas.map((celda) => ({
+            curso_id: celda.asignacion.curso_id,
+            grupo_id: grupoId,
+            periodo_id: periodo.id,
+            docente_curso_id: celda.docente_curso_id,
+            docente_id: celda.asignacion.docente_id,
+            modulo_horario_id: celda.modulo_horario_id,
+            dia_semana: celda.dia_semana,
+            aula: celda.aula,
+            creado_por_docente_id: req.usuario.id
+        })), { transaction }) : [];
+        await transaction.commit();
+        return res.status(200).json({
+            mensaje: 'Horario guardado correctamente',
+            total_celdas: horarios.length
+        });
+    } catch (error) {
+        if (!transaction.finished) await transaction.rollback();
+        console.error('Error al guardar horario por lote:', error.message || error);
+        return res.status(409).json({ mensaje: obtenerMensajeHorario(error) });
+    }
+};
+
+/* ------------------------------------------------------------------------------------------
 METODO PARA LIBERAR UNA CELDA DEL HORARIO DEL PERIODO ACTIVO
 ------------------------------------------------------------------------------------------ */
 

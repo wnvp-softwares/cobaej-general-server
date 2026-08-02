@@ -6,6 +6,7 @@ import {
     eliminarCeldaHorario,
     eliminarModuloHorario,
     guardarCeldaHorario,
+    guardarHorarioGrupoLote,
     obtenerConfiguracionHorarios,
     obtenerHorarioGrupo
 } from '../controllers/horario.controller.js';
@@ -37,6 +38,7 @@ RUTAS DOCENTES PARA ADMINISTRAR LA TABLA GENERAL DEL GRUPO
 -------------------------------------------------------- */
 
 router.put('/grupos/:grupoId/celdas', validarAuth, validarDocente, guardarCeldaHorario);
+router.put('/grupos/:grupoId/celdas/lote', validarAuth, validarDocente, guardarHorarioGrupoLote);
 router.delete('/grupos/:grupoId/celdas/:id', validarAuth, validarDocente, eliminarCeldaHorario);
 
 export const horarioRoutes = router;

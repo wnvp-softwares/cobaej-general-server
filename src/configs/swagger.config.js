@@ -131,6 +131,17 @@ export const crearDocumentacionSwagger = () => ({
                         docente_curso_id: { type: 'integer' },
                         aula: { type: 'string' }
                     }
+                },
+                HorarioGrupoLote: {
+                    type: 'object',
+                    required: ['celdas'],
+                    properties: {
+                        celdas: {
+                            type: 'array',
+                            description: 'Estado final completo del horario del grupo. Un arreglo vacío libera todas las celdas.',
+                            items: { $ref: '#/components/schemas/CeldaHorario' }
+                        }
+                    }
                 }
             }
         },
@@ -178,6 +189,7 @@ export const crearDocumentacionSwagger = () => ({
             },
             '/horarios/grupos/{grupoId}': { get: { tags: ['Horarios'], summary: 'Consultar horario, disponibilidad y conflictos de un grupo', security: seguridad, parameters: [{ in: 'path', name: 'grupoId', required: true, schema: { type: 'integer' } }], responses: { 200: respuesta('Tabla dinámica del horario') } } },
             '/horarios/grupos/{grupoId}/celdas': { put: { tags: ['Horarios'], summary: 'Crear o reemplazar una celda del horario general', description: 'Valida conflictos del docente, disponibilidad total y horas semanales de la materia.', security: seguridad, parameters: [{ in: 'path', name: 'grupoId', required: true, schema: { type: 'integer' } }], requestBody: json({ $ref: '#/components/schemas/CeldaHorario' }), responses: { 200: respuesta('Celda actualizada'), 201: respuesta('Celda creada'), 409: respuesta('Conflicto de horario o límite de horas') } } },
+            '/horarios/grupos/{grupoId}/celdas/lote': { put: { tags: ['Horarios'], summary: 'Guardar el horario completo del grupo en una sola transacción', description: 'Reemplaza el horario del grupo con el estado final enviado. Valida en conjunto celdas duplicadas, conflictos externos, disponibilidad docente y horas semanales antes de confirmar cualquier cambio.', security: seguridad, parameters: [{ in: 'path', name: 'grupoId', required: true, schema: { type: 'integer' } }], requestBody: json({ $ref: '#/components/schemas/HorarioGrupoLote' }), responses: { 200: respuesta('Horario completo guardado'), 400: respuesta('Celdas o asignaciones no válidas'), 409: respuesta('Conflicto de horario o límite de horas') } } },
             '/horarios/grupos/{grupoId}/celdas/{id}': { delete: { tags: ['Horarios'], summary: 'Liberar una celda del horario', security: seguridad, parameters: [{ in: 'path', name: 'grupoId', required: true, schema: { type: 'integer' } }, { in: 'path', name: 'id', required: true, schema: { type: 'integer' } }], responses: { 200: respuesta('Celda liberada') } } },
             '/calificaciones/curso/{id}': { get: { tags: ['Calificaciones'], summary: 'Consultar calificaciones del curso con filtro por rol', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }], responses: { 200: respuesta('Calificaciones normalizadas') } } },
             '/calificaciones/actividades/{actividadId}': { put: { tags: ['Calificaciones'], summary: 'Registrar o actualizar una calificación y su rúbrica', security: seguridad, parameters: [{ in: 'path', name: 'actividadId', required: true, schema: { type: 'integer' } }], requestBody: json({ $ref: '#/components/schemas/CalificacionActividad' }), responses: { 200: respuesta('Calificación guardada') } } },
