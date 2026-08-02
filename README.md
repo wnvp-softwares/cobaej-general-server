@@ -19,6 +19,10 @@ Con el servidor activo, la documentación interactiva está disponible en:
 
 La especificación cubre autenticación, verificación, perfil, listados académicos, materias, cursos, actividades, calificaciones y kardex.
 
+## Kardex parcial
+
+El kardex se genera con toda la información disponible del alumno. No requiere que estén capturadas las tres unidades ni que todas las materias tengan calificación. Las unidades faltantes se devuelven como pendientes y la respuesta incluye un resumen que indica si el documento es parcial.
+
 ## Cálculo de calificaciones
 
 Cada unidad se normaliza sobre 100:

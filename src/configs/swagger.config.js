@@ -89,6 +89,27 @@ export const crearDocumentacionSwagger = () => ({
                         inscripcion_materia_id: { type: 'integer' }, puntos_obtenidos: { type: 'number' },
                         observaciones: { type: 'string' }, rubricas: { type: 'array', items: { type: 'object' } }
                     }
+                },
+                Kardex: {
+                    type: 'object',
+                    description: 'Kardex parcial o completo construido únicamente con la información disponible.',
+                    properties: {
+                        alumno: { type: 'object', description: 'Datos disponibles del alumno.' },
+                        materias: {
+                            type: 'array',
+                            description: 'Materias inscritas con tres unidades. Las calificaciones pendientes se entregan como null.',
+                            items: { type: 'object' }
+                        },
+                        resumen: {
+                            type: 'object',
+                            properties: {
+                                materiasRegistradas: { type: 'integer' },
+                                unidadesCalificadas: { type: 'integer' },
+                                totalUnidades: { type: 'integer' },
+                                parcial: { type: 'boolean' }
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -127,8 +148,8 @@ export const crearDocumentacionSwagger = () => ({
             '/cursos/{id}/actividades/{actividadId}': { get: { tags: ['Actividades'], summary: 'Obtener actividad, rúbricas y enlaces temporales de materiales', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }, { in: 'path', name: 'actividadId', required: true, schema: { type: 'integer' } }], responses: { 200: respuesta('Detalle de actividad') } } },
             '/calificaciones/curso/{id}': { get: { tags: ['Calificaciones'], summary: 'Consultar calificaciones del curso con filtro por rol', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }], responses: { 200: respuesta('Calificaciones normalizadas') } } },
             '/calificaciones/actividades/{actividadId}': { put: { tags: ['Calificaciones'], summary: 'Registrar o actualizar una calificación y su rúbrica', security: seguridad, parameters: [{ in: 'path', name: 'actividadId', required: true, schema: { type: 'integer' } }], requestBody: json({ $ref: '#/components/schemas/CalificacionActividad' }), responses: { 200: respuesta('Calificación guardada') } } },
-            '/calificaciones/kardex/propio': { get: { tags: ['Calificaciones'], summary: 'Obtener el kardex completo del alumno autenticado', security: seguridad, responses: { 200: respuesta('Información del alumno y todas sus materias') } } },
+            '/calificaciones/kardex/propio': { get: { tags: ['Calificaciones'], summary: 'Obtener el kardex disponible del alumno autenticado', description: 'Genera el kardex aunque existan materias o unidades pendientes. Las calificaciones todavía no capturadas se devuelven como null.', security: seguridad, responses: { 200: { description: 'Kardex parcial o completo', content: { 'application/json': { schema: { $ref: '#/components/schemas/Kardex' } } } } } } },
             '/calificaciones/kardex/alumnos': { get: { tags: ['Calificaciones'], summary: 'Listar alumnos relacionados con el docente', security: seguridad, responses: { 200: respuesta('Alumnos disponibles') } } },
-            '/calificaciones/kardex/alumnos/{alumnoId}': { get: { tags: ['Calificaciones'], summary: 'Obtener el kardex completo de un alumno relacionado', security: seguridad, parameters: [{ in: 'path', name: 'alumnoId', required: true, schema: { type: 'integer' } }], responses: { 200: respuesta('Kardex completo'), 403: respuesta('Sin relación académica') } } }
+            '/calificaciones/kardex/alumnos/{alumnoId}': { get: { tags: ['Calificaciones'], summary: 'Obtener el kardex disponible de un alumno relacionado', description: 'Genera el kardex con los datos académicos existentes, aunque falten materias o calificaciones.', security: seguridad, parameters: [{ in: 'path', name: 'alumnoId', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Kardex parcial o completo', content: { 'application/json': { schema: { $ref: '#/components/schemas/Kardex' } } } }, 403: respuesta('Sin relación académica') } } }
         }
 });

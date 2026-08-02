@@ -168,6 +168,43 @@ const construirKardex = async (alumnoId) => {
     if (!alumno) return null;
 
     const materias = await sequelize.query(`
+        WITH calificaciones_por_unidad AS (
+            SELECT
+                inscripcion.id AS inscripcion_materia_id,
+                unidad.id AS unidad_curso_id,
+                ROUND(
+                    SUM(calificacion.puntos_obtenidos)
+                    / NULLIF(
+                        SUM(
+                            CASE
+                                WHEN calificacion.id IS NOT NULL
+                                    THEN actividad.valor_maximo
+                                ELSE 0
+                            END
+                        ),
+                        0
+                    )
+                    * 100,
+                    2
+                ) AS calificacion_unidad
+            FROM inscripciones_materias AS inscripcion
+            INNER JOIN unidades_curso AS unidad
+                ON unidad.curso_id = inscripcion.curso_id
+            LEFT JOIN actividades AS actividad
+                ON actividad.unidad_curso_id = unidad.id
+            LEFT JOIN calificaciones_actividades AS calificacion
+                ON calificacion.actividad_id = actividad.id
+                AND calificacion.inscripcion_materia_id = inscripcion.id
+            GROUP BY inscripcion.id, unidad.id
+        ),
+        calificaciones_generales AS (
+            SELECT
+                inscripcion_materia_id,
+                ROUND(AVG(calificacion_unidad), 2) AS calificacion_general
+            FROM calificaciones_por_unidad
+            WHERE calificacion_unidad IS NOT NULL
+            GROUP BY inscripcion_materia_id
+        )
         SELECT
             inscripcion.id AS inscripcion_materia_id,
             curso.id AS curso_id,
@@ -175,10 +212,13 @@ const construirKardex = async (alumnoId) => {
             materia.grado_semestre AS semestre,
             grupo.division AS grupo,
             periodo.nombre_ciclo AS periodo,
-            unidad.numero AS unidad,
-            unidad.nombre AS unidad_nombre,
-            vista_unidad.calificacion_unidad,
-            vista_general.calificacion_general
+            unidades_esperadas.numero AS unidad,
+            COALESCE(
+                unidad.nombre,
+                'Unidad ' || unidades_esperadas.numero::TEXT
+            ) AS unidad_nombre,
+            calificacion_unidad.calificacion_unidad,
+            calificacion_general.calificacion_general
         FROM inscripciones_materias AS inscripcion
         INNER JOIN historial_inscripciones AS historial
             ON historial.id = inscripcion.historial_inscripcion_id
@@ -186,17 +226,38 @@ const construirKardex = async (alumnoId) => {
         INNER JOIN materias AS materia ON materia.id = curso.materia_id
         INNER JOIN grupos AS grupo ON grupo.id = curso.grupo_id
         INNER JOIN periodos_escolares AS periodo ON periodo.id = curso.periodo_id
-        INNER JOIN unidades_curso AS unidad ON unidad.curso_id = curso.id
-        LEFT JOIN vista_calificaciones_unidades AS vista_unidad
-            ON vista_unidad.inscripcion_materia_id = inscripcion.id
-            AND vista_unidad.unidad_curso_id = unidad.id
-        LEFT JOIN vista_calificaciones_generales AS vista_general
-            ON vista_general.inscripcion_materia_id = inscripcion.id
+        CROSS JOIN (VALUES (1), (2), (3)) AS unidades_esperadas(numero)
+        LEFT JOIN unidades_curso AS unidad
+            ON unidad.curso_id = curso.id
+            AND unidad.numero = unidades_esperadas.numero
+        LEFT JOIN calificaciones_por_unidad AS calificacion_unidad
+            ON calificacion_unidad.inscripcion_materia_id = inscripcion.id
+            AND calificacion_unidad.unidad_curso_id = unidad.id
+        LEFT JOIN calificaciones_generales AS calificacion_general
+            ON calificacion_general.inscripcion_materia_id = inscripcion.id
         WHERE historial.alumno_id = :alumnoId
-        ORDER BY periodo.fecha_inicio, materia.nombre, unidad.numero
+        ORDER BY periodo.fecha_inicio, materia.nombre, unidades_esperadas.numero
     `, { replacements: { alumnoId }, type: QueryTypes.SELECT });
 
-    return { alumno: alumno.toJSON(), materias };
+    const materiasRegistradas = new Set(
+        materias.map((materia) => String(materia.inscripcion_materia_id))
+    ).size;
+    const unidadesCalificadas = materias.filter((materia) => {
+        return materia.calificacion_unidad !== null
+            && materia.calificacion_unidad !== undefined;
+    }).length;
+    const totalUnidades = materiasRegistradas * 3;
+
+    return {
+        alumno: alumno.toJSON(),
+        materias,
+        resumen: {
+            materiasRegistradas,
+            unidadesCalificadas,
+            totalUnidades,
+            parcial: materiasRegistradas === 0 || unidadesCalificadas < totalUnidades
+        }
+    };
 };
 
 /* ------------------------------------------------------------------------------------------
