@@ -23,6 +23,8 @@ La especificación cubre autenticación, verificación, perfil, listados académ
 
 El kardex se genera con toda la información disponible del alumno. No requiere que estén capturadas las tres unidades ni que todas las materias tengan calificación. Las unidades faltantes se devuelven como pendientes y la respuesta incluye un resumen que indica si el documento es parcial.
 
+Los docentes pueden consultar y exportar el kardex de alumnos inscritos en cursos que imparten o impartieron. La autorización se valida directamente mediante las relaciones entre `docentes_cursos`, `inscripciones_materias` e `historial_inscripciones`.
+
 ## Cálculo de calificaciones
 
 Cada unidad se normaliza sobre 100:
