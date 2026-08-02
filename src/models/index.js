@@ -10,6 +10,7 @@ import DocenteCurso from './DocenteCurso.model.js';
 import UnidadCurso from './UnidadCurso.model.js';
 import InscripcionMateria from './InscripcionMateria.model.js';
 import Horario from './Horario.model.js';
+import ModuloHorario from './ModuloHorario.model.js';
 import Asistencia from './Asistencia.model.js';
 import Actividad from './Actividad.model.js';
 import RubricaActividad from './RubricaActividad.model.js';
@@ -68,6 +69,16 @@ ASOCIACIONES DE ACTIVIDADES, ARCHIVOS, RUBRICAS Y CALIFICACIONES
 
 Curso.hasMany(Horario, { foreignKey: 'curso_id', as: 'horarios' });
 Horario.belongsTo(Curso, { foreignKey: 'curso_id', as: 'curso' });
+Grupo.hasMany(Horario, { foreignKey: 'grupo_id', as: 'horarios' });
+Horario.belongsTo(Grupo, { foreignKey: 'grupo_id', as: 'grupo' });
+PeriodoEscolar.hasMany(ModuloHorario, { foreignKey: 'periodo_id', as: 'modulosHorario' });
+ModuloHorario.belongsTo(PeriodoEscolar, { foreignKey: 'periodo_id', as: 'periodo' });
+ModuloHorario.hasMany(Horario, { foreignKey: 'modulo_horario_id', as: 'horarios' });
+Horario.belongsTo(ModuloHorario, { foreignKey: 'modulo_horario_id', as: 'modulo' });
+DocenteCurso.hasMany(Horario, { foreignKey: 'docente_curso_id', as: 'horarios' });
+Horario.belongsTo(DocenteCurso, { foreignKey: 'docente_curso_id', as: 'docenteCurso' });
+Docente.hasMany(Horario, { foreignKey: 'docente_id', as: 'horariosAsignados' });
+Horario.belongsTo(Docente, { foreignKey: 'docente_id', as: 'docente' });
 Horario.hasMany(Asistencia, { foreignKey: 'horario_id', as: 'asistencias' });
 Asistencia.belongsTo(Horario, { foreignKey: 'horario_id', as: 'horario' });
 InscripcionMateria.hasMany(Asistencia, { foreignKey: 'inscripcion_materia_id', as: 'asistencias' });
@@ -92,6 +103,6 @@ CalificacionRubrica.belongsTo(RubricaActividad, { foreignKey: 'rubrica_actividad
 export {
     ClaveDocente, Docente, Alumno, Materia, PeriodoEscolar, Grupo,
     HistorialInscripcion, MateriaActiva, Curso, DocenteCurso, UnidadCurso,
-    InscripcionMateria, Horario, Asistencia, Actividad, RubricaActividad,
+    InscripcionMateria, Horario, ModuloHorario, Asistencia, Actividad, RubricaActividad,
     ArchivoActividad, CalificacionActividad, CalificacionRubrica
 };

@@ -4,7 +4,7 @@ API de control escolar construida con Node.js, Express, Sequelize, PostgreSQL y 
 
 ## Puesta en marcha
 
-1. Ejecuta `cobaej_control_postgres_cursos.sql` en PostgreSQL. El archivo elimina y reconstruye todas las estructuras de la aplicación y, por lo tanto, también elimina sus datos actuales.
+1. Ejecuta `cobaej_control_postgres_horarios.sql` en PostgreSQL. El archivo elimina y reconstruye todas las estructuras de la aplicación y, por lo tanto, también elimina sus datos actuales.
 2. Configura `SUPABASE_MATERIALES_BUCKET=materiales-academicos` y utiliza una `SUPABASE_KEY` de servidor con permisos administrativos de Storage.
 3. El servidor creará automáticamente el bucket privado si todavía no existe. También puedes crearlo manualmente desde Supabase.
 4. Ejecuta `pnpm install`.
@@ -23,7 +23,13 @@ La especificación cubre autenticación, verificación, perfil, listados académ
 
 El kardex se genera con toda la información disponible del alumno. No requiere que estén capturadas las tres unidades ni que todas las materias tengan calificación. Las unidades faltantes se devuelven como pendientes y la respuesta incluye un resumen que indica si el documento es parcial.
 
-Los docentes pueden consultar y exportar el kardex de alumnos inscritos en cursos que imparten o impartieron. La autorización se valida directamente mediante las relaciones entre `docentes_cursos`, `inscripciones_materias` e `historial_inscripciones`.
+Los docentes pueden consultar y exportar el kardex de cualquier alumno registrado. El alumno únicamente puede consultar su propio historial.
+
+## Ciclo activo y horarios
+
+Solo un periodo escolar puede estar activo. Al cambiarlo, el servidor cierra los cursos de otros periodos, habilita los del ciclo seleccionado, conserva el grupo del alumno y calcula su nuevo semestre para crear el historial correspondiente.
+
+Los horarios se construyen mediante módulos configurables y celdas semanales. Cada celda cuenta como una hora. La API y PostgreSQL impiden que un docente supere sus horas disponibles, que una materia exceda sus horas semanales, que un docente ocupe dos grupos en el mismo módulo o que un grupo tenga dos clases simultáneas.
 
 ## Cálculo de calificaciones
 

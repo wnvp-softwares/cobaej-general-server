@@ -10,7 +10,6 @@ import {
     UnidadCurso
 } from '../models/index.js';
 import {
-    docenteRelacionadoConAlumno,
     obtenerAccesoCurso
 } from '../services/curso-acceso.service.js';
 
@@ -285,9 +284,6 @@ export const obtenerKardexAlumno = async (req, res) => {
         if (!Number.isInteger(alumnoId) || alumnoId <= 0) {
             return res.status(400).json({ mensaje: 'El identificador del alumno no es válido' });
         }
-        if (!await docenteRelacionadoConAlumno(req.usuario.id, alumnoId)) {
-            return res.status(403).json({ mensaje: 'Solo puedes consultar alumnos a quienes impartes o impartiste clase' });
-        }
         const kardex = await construirKardex(alumnoId);
         if (!kardex) return res.status(404).json({ mensaje: 'Alumno no encontrado' });
         return res.status(200).json(kardex);
@@ -304,16 +300,10 @@ METODO PARA LISTAR LOS ALUMNOS DISPONIBLES EN EL SELECTOR DE KARDEX DOCENTE
 export const listarAlumnosKardex = async (req, res) => {
     try {
         const alumnos = await sequelize.query(`
-            SELECT DISTINCT alumno.id, alumno.nombre, alumno.numero_control
-            FROM docentes_cursos AS docente_curso
-            INNER JOIN inscripciones_materias AS inscripcion
-                ON inscripcion.curso_id = docente_curso.curso_id
-            INNER JOIN historial_inscripciones AS historial
-                ON historial.id = inscripcion.historial_inscripcion_id
-            INNER JOIN alumnos AS alumno ON alumno.id = historial.alumno_id
-            WHERE docente_curso.docente_id = :docenteId
+            SELECT alumno.id, alumno.nombre, alumno.numero_control
+            FROM alumnos AS alumno
             ORDER BY alumno.nombre
-        `, { replacements: { docenteId: req.usuario.id }, type: QueryTypes.SELECT });
+        `, { type: QueryTypes.SELECT });
         return res.status(200).json({ alumnos });
     } catch (error) {
         console.error('Error al listar alumnos para kardex:', error.message || error);

@@ -4,6 +4,7 @@ import { perfilRoutes } from './perfil.route.js';
 import { academicoRoutes } from './academico.route.js';
 import { cursoRoutes } from './curso.route.js';
 import { calificacionRoutes } from './calificacion.route.js';
+import { horarioRoutes } from './horario.route.js';
 
 const router = express.Router();
 
@@ -15,5 +16,6 @@ router.use('/perfil', perfilRoutes);
 router.use('/academico', academicoRoutes);
 router.use('/cursos', cursoRoutes);
 router.use('/calificaciones', calificacionRoutes);
+router.use('/horarios', horarioRoutes);
 
 export const rutasGenerales = router;

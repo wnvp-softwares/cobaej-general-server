@@ -1,4 +1,4 @@
-import { Op } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import sequelize from '../configs/database.config.js';
 import {
     Alumno,
@@ -665,6 +665,30 @@ export const actualizarMateria = async (req, res) => {
         }
 
         if (Object.keys(validacion.cambios).length > 0) {
+            if (validacion.cambios.horas_semanales !== undefined) {
+                const [ocupacion] = await sequelize.query(`
+                    SELECT COALESCE(MAX(horas_curso), 0)::INT AS maximo_asignado
+                    FROM (
+                        SELECT COUNT(horario.id)::INT AS horas_curso
+                        FROM cursos AS curso
+                        INNER JOIN periodos_escolares AS periodo
+                            ON periodo.id = curso.periodo_id AND periodo.activo = TRUE
+                        LEFT JOIN horarios AS horario ON horario.curso_id = curso.id
+                        WHERE curso.materia_id = :materiaId
+                        GROUP BY curso.id
+                    ) AS cargas
+                `, {
+                    replacements: { materiaId: materia.id },
+                    type: QueryTypes.SELECT,
+                    transaction
+                });
+                if (validacion.cambios.horas_semanales < (ocupacion?.maximo_asignado || 0)) {
+                    await transaction.rollback();
+                    return res.status(409).json({
+                        mensaje: `La materia ya tiene ${ocupacion.maximo_asignado} horas asignadas en un horario activo`
+                    });
+                }
+            }
             await materia.update(validacion.cambios, { transaction });
         }
 

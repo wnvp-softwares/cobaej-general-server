@@ -1,5 +1,3 @@
-import { QueryTypes } from 'sequelize';
-import sequelize from '../configs/database.config.js';
 import {
     Curso,
     DocenteCurso,
@@ -50,28 +48,4 @@ export const obtenerAccesoCurso = async (cursoId, usuario, transaction = null) =
         compatible: Boolean(historial),
         esDocente: false
     };
-};
-
-/* ------------------------------------------------------------------------------------------
-METODO PARA CONFIRMAR QUE UN DOCENTE HA IMPARTIDO CLASE AL ALUMNO CONSULTADO
------------------------------------------------------------------------------------------- */
-
-export const docenteRelacionadoConAlumno = async (docenteId, alumnoId) => {
-    const [relacion] = await sequelize.query(`
-        SELECT EXISTS (
-            SELECT 1
-            FROM docentes_cursos AS docente_curso
-            INNER JOIN inscripciones_materias AS inscripcion
-                ON inscripcion.curso_id = docente_curso.curso_id
-            INNER JOIN historial_inscripciones AS historial
-                ON historial.id = inscripcion.historial_inscripcion_id
-            WHERE docente_curso.docente_id = :docenteId
-              AND historial.alumno_id = :alumnoId
-        ) AS relacionado
-    `, {
-        replacements: { docenteId, alumnoId },
-        type: QueryTypes.SELECT
-    });
-
-    return relacion?.relacion === true;
 };

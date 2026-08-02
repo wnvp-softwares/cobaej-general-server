@@ -52,10 +52,19 @@ METODO PARA OBTENER MATERIAS Y GRUPOS DISPONIBLES PARA CREAR UN CURSO
 
 export const obtenerOpcionesCurso = async (req, res) => {
     try {
-        const asignaciones = await MateriaActiva.findAll({
+        const asignacionesPropias = await MateriaActiva.findAll({
             where: { docente_id: req.usuario.id },
-            include: [{ model: Materia, as: 'materia' }],
-            order: [[{ model: Materia, as: 'materia' }, 'nombre', 'ASC']]
+            attributes: ['materia_id']
+        });
+        const materias = await Materia.findAll({
+            where: { id: { [Op.in]: asignacionesPropias.map((asignacion) => asignacion.materia_id) } },
+            include: [{
+                model: MateriaActiva,
+                as: 'asignaciones',
+                attributes: ['docente_id'],
+                include: [{ model: Docente, as: 'docente', attributes: ['id', 'nombre'] }]
+            }],
+            order: [['nombre', 'ASC']]
         });
         const periodo = await PeriodoEscolar.findOne({ where: { activo: true } });
         const grupos = periodo
@@ -67,7 +76,7 @@ export const obtenerOpcionesCurso = async (req, res) => {
 
         return res.status(200).json({
             periodo,
-            materias: asignaciones.map((asignacion) => asignacion.materia),
+            materias,
             grupos
         });
     } catch (error) {
@@ -83,6 +92,7 @@ METODO PARA LISTAR CURSOS VISIBLES PARA EL USUARIO AUTENTICADO
 export const listarCursos = async (req, res) => {
     try {
         const { pagina, limite, offset } = obtenerPaginacion(req.query);
+        const periodoActivo = await PeriodoEscolar.findOne({ where: { activo: true } });
         const include = [
             { model: Materia, as: 'materia', attributes: ['id', 'nombre', 'grado_semestre', 'color_hex'] },
             { model: Grupo, as: 'grupo', attributes: ['id', 'grado_semestre', 'division'] },
@@ -94,7 +104,9 @@ export const listarCursos = async (req, res) => {
                 include: [{ model: Docente, as: 'docente', attributes: ['id', 'nombre'] }]
             }
         ];
-        let where = {};
+        let where = periodoActivo
+            ? { periodo_id: periodoActivo.id }
+            : { id: -1 };
 
         if (req.usuario.tipo === 'docente') {
             include[3].where = { docente_id: req.usuario.id };
@@ -104,8 +116,11 @@ export const listarCursos = async (req, res) => {
                 where: { alumno_id: req.usuario.id },
                 attributes: ['id', 'grupo_id', 'periodo_id']
             });
-            where = historiales.length
-                ? { [Op.or]: historiales.map(({ grupo_id, periodo_id }) => ({ grupo_id, periodo_id })) }
+            where = periodoActivo && historiales.length
+                ? {
+                    periodo_id: periodoActivo.id,
+                    [Op.or]: historiales.map(({ grupo_id, periodo_id }) => ({ grupo_id, periodo_id }))
+                }
                 : { id: -1 };
         }
 
@@ -168,8 +183,17 @@ export const crearCurso = async (req, res) => {
     try {
         const grupo = await Grupo.findByPk(grupoId, { transaction });
         const materia = await Materia.findByPk(materiaId, { transaction });
+        const periodoActivo = await PeriodoEscolar.findOne({
+            where: { activo: true },
+            transaction
+        });
 
-        if (!grupo || !materia || String(grupo.grado_semestre) !== String(materia.grado_semestre)) {
+        if (!periodoActivo || !grupo || String(grupo.periodo_id) !== String(periodoActivo.id)) {
+            await transaction.rollback();
+            return res.status(400).json({ mensaje: 'El grupo debe pertenecer al ciclo escolar activo' });
+        }
+
+        if (!materia || String(grupo.grado_semestre) !== String(materia.grado_semestre)) {
             await transaction.rollback();
             return res.status(400).json({ mensaje: 'La materia y el grupo deben corresponder al mismo semestre' });
         }
