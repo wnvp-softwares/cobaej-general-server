@@ -16,6 +16,7 @@ Materia.init({
         validate: { min: 1 }
     },
     grado_semestre: { type: DataTypes.ENUM('1', '2', '3', '4', '5', '6'), allowNull: false },
+    periodo_id: { type: DataTypes.BIGINT, allowNull: false },
     color_hex: {
         type: DataTypes.STRING(7),
         allowNull: false,

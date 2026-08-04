@@ -4,7 +4,8 @@ import {
     Grupo,
     HistorialInscripcion,
     Horario,
-    PeriodoEscolar
+    PeriodoEscolar,
+    ReprobacionAlumno
 } from '../models/index.js';
 import { subirArchivoSupabase } from '../services/storage.service.js';
 
@@ -13,6 +14,7 @@ const CAMPOS_SENSIBLES = [
     'clave',
     'contrasena',
     'numero_control',
+    'periodo_ingreso_id',
     'clave_registro',
     'clave_docente'
 ];
@@ -154,9 +156,17 @@ const obtenerPerfilConsultado = async (req, res, tipo) => {
         }
         const usuario = await obtenerUsuarioConPerfil(Modelo, id, tipo);
         if (!usuario) return res.status(404).json({ mensaje: 'Perfil no encontrado' });
-        return res.status(200).json({
-            usuario: construirPerfilConsultado(usuario, tipo, req.usuario)
-        });
+        const perfil = construirPerfilConsultado(usuario, tipo, req.usuario);
+        if (tipo === 'alumno' && req.usuario.tipo === 'docente') {
+            const periodo = await PeriodoEscolar.findOne({ where: { activo: true }, attributes: ['id'] });
+            const reprobacion = periodo ? await ReprobacionAlumno.findOne({
+                where: { alumno_id: usuario.id, periodo_id: periodo.id },
+                attributes: ['motivo']
+            }) : null;
+            perfil.reprobado = Boolean(reprobacion);
+            perfil.motivo_reprobacion = reprobacion?.motivo || null;
+        }
+        return res.status(200).json({ usuario: perfil });
     } catch (error) {
         console.error('Error al consultar perfil de directorio:', error.message || error);
         return res.status(500).json({ mensaje: 'No fue posible consultar el perfil' });

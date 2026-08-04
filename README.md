@@ -4,7 +4,7 @@ API de control escolar construida con Node.js, Express, Sequelize, PostgreSQL y 
 
 ## Puesta en marcha
 
-1. Ejecuta `cobaej_control_postgres_horarios.sql` en PostgreSQL. El archivo elimina y reconstruye todas las estructuras de la aplicación y, por lo tanto, también elimina sus datos actuales.
+1. Ejecuta `cobaej_control_postgres_configuracion_reprobaciones_ciclos.sql` en PostgreSQL. El archivo elimina y reconstruye todas las estructuras de la aplicación y, por lo tanto, también elimina sus datos actuales.
 2. Configura `SUPABASE_MATERIALES_BUCKET=materiales-academicos` y utiliza una `SUPABASE_KEY` de servidor con permisos administrativos de Storage.
 3. El servidor creará automáticamente el bucket privado si todavía no existe. También puedes crearlo manualmente desde Supabase.
 4. Ejecuta `pnpm install`.
@@ -17,7 +17,15 @@ Con el servidor activo, la documentación interactiva está disponible en:
 - `/sicecobaej/docs`
 - `/sicecobaej/docs.json`
 
-La especificación cubre autenticación, verificación, perfil, listados académicos, materias, cursos, actividades, calificaciones y kardex.
+La especificación cubre autenticación, verificación, configuración sensible, perfil, reprobaciones, materias por ciclo, cursos, actividades, calificaciones, horarios y kardex.
+
+## Configuración sensible
+
+El correo, la contraseña, el número de control, la clave docente y el ciclo de ingreso se actualizan desde una ruta protegida que exige la contraseña actual. Un cambio de correo invalida la sesión y obliga a verificar nuevamente la cuenta. Las claves docentes solo pueden asignarse cuando existen y se encuentran libres.
+
+## Reprobaciones y avance semestral
+
+Cada reprobación se registra por alumno y ciclo. Al activar otro ciclo, el cálculo del semestre descuenta todas las reprobaciones anteriores, por lo que un alumno puede permanecer en el mismo semestre las veces necesarias. Retirar el estado durante el ciclo elimina únicamente ese registro semestral.
 
 ## Kardex parcial
 
@@ -27,7 +35,9 @@ Los docentes pueden consultar y exportar el kardex de cualquier alumno registrad
 
 ## Ciclo activo y horarios
 
-Solo un periodo escolar puede estar activo. Al cambiarlo, el servidor cierra los cursos de otros periodos, habilita los del ciclo seleccionado, conserva el grupo del alumno y calcula su nuevo semestre para crear el historial correspondiente.
+Solo un periodo escolar puede estar activo. Al cambiarlo, el servidor cierra los cursos de otros periodos, habilita los del ciclo seleccionado, conserva la división del alumno y calcula su nuevo semestre, incluyendo reprobaciones, para crear el historial correspondiente.
+
+Las materias y los cursos pertenecen a un ciclo específico. Una materia nueva utiliza automáticamente el ciclo activo. Las materias o cursos históricos pueden consultarse, pero las actividades y calificaciones solo se modifican cuando su curso pertenece al ciclo activo.
 
 Los horarios se construyen mediante módulos configurables y celdas semanales. Cada celda cuenta como una hora. La API y PostgreSQL impiden que un docente supere sus horas disponibles, que una materia exceda sus horas semanales, que un docente ocupe dos grupos en el mismo módulo o que un grupo tenga dos clases simultáneas.
 

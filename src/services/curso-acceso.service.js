@@ -2,7 +2,8 @@ import {
     Curso,
     DocenteCurso,
     HistorialInscripcion,
-    InscripcionMateria
+    InscripcionMateria,
+    PeriodoEscolar
 } from '../models/index.js';
 
 /* ------------------------------------------------------------------------------------------
@@ -12,13 +13,15 @@ METODO PARA CONSULTAR EL ACCESO DE UN USUARIO A UN CURSO ESPECIFICO
 export const obtenerAccesoCurso = async (cursoId, usuario, transaction = null) => {
     const curso = await Curso.findByPk(cursoId, { transaction });
     if (!curso) return { curso: null, autorizado: false };
+    const periodoActivo = await PeriodoEscolar.findOne({ where: { activo: true }, transaction });
+    const cicloActivo = Boolean(periodoActivo && String(periodoActivo.id) === String(curso.periodo_id));
 
     if (usuario.tipo === 'docente') {
         const asignacion = await DocenteCurso.findOne({
             where: { curso_id: curso.id, docente_id: usuario.id },
             transaction
         });
-        return { curso, autorizado: Boolean(asignacion), esDocente: true };
+        return { curso, autorizado: Boolean(asignacion), esDocente: true, cicloActivo };
     }
 
     const historial = await HistorialInscripcion.findOne({
@@ -46,6 +49,7 @@ export const obtenerAccesoCurso = async (cursoId, usuario, transaction = null) =
         inscripcion,
         autorizado: Boolean(inscripcion),
         compatible: Boolean(historial),
-        esDocente: false
+        esDocente: false,
+        cicloActivo
     };
 };

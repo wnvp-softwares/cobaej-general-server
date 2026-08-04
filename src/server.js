@@ -49,7 +49,7 @@ const mostrarDocumentacionSwagger = (req, res) => res.type('html').send(`
 
         body {
             margin: 0;
-            background: #f8fafc;
+            background: #f3efe6;
             transition: background-color 0.25s, color 0.25s;
         }
 
@@ -62,7 +62,7 @@ const mostrarDocumentacionSwagger = (req, res) => res.type('html').send(`
             padding: 0 15px;
             border: 1px solid #cbd5e1;
             border-radius: 11px;
-            background: #ffffff;
+            background: #fffdf7;
             color: #1e293b;
             font: 600 13px system-ui, sans-serif;
             cursor: pointer;

@@ -27,13 +27,14 @@ export const crearDocumentacionSwagger = () => ({
         openapi: '3.0.3',
         info: {
             title: 'API SiCECOBAEJ',
-            version: '3.0.0',
-            description: 'Documentación en español de autenticación, perfiles, catálogo académico, ciclo activo, cursos, horarios, actividades, calificaciones y kardex.'
+            version: '4.0.0',
+            description: 'Documentación en español de autenticación, configuración sensible, perfiles, catálogo académico por ciclo, reprobaciones, cursos, horarios, actividades, calificaciones y kardex.'
         },
         servers: [{ url: '/sicecobaej', description: 'Servidor actual' }],
         tags: [
             { name: 'Autenticación', description: 'Registro, acceso y verificación de cuentas' },
             { name: 'Perfil', description: 'Consulta y edición de datos no sensibles' },
+            { name: 'Configuración', description: 'Consulta y actualización autenticada de datos sensibles' },
             { name: 'Académico', description: 'Listados, materias y configuración inicial' },
             { name: 'Cursos', description: 'Cursos por materia, grupo y periodo' },
             { name: 'Actividades', description: 'Actividades, rúbricas y materiales de apoyo' },
@@ -74,7 +75,21 @@ export const crearDocumentacionSwagger = () => ({
                     type: 'object', required: ['nombre', 'grado_semestre', 'horas_semanales'],
                     properties: {
                         nombre: { type: 'string' }, grado_semestre: { type: 'string', enum: ['1', '2', '3', '4', '5', '6'] },
-                        horas_semanales: { type: 'integer' }, docentes_ids: { type: 'array', items: { type: 'integer' } }
+                        horas_semanales: { type: 'integer' }, periodo_id: { type: 'integer', description: 'Ciclo escolar al que pertenece la versión de la materia.' },
+                        docentes_ids: { type: 'array', items: { type: 'integer' } }
+                    }
+                },
+                ConfiguracionCuenta: {
+                    type: 'object',
+                    required: ['clave_actual'],
+                    properties: {
+                        correo: { type: 'string', format: 'email', description: 'Al cambiarlo, la cuenta vuelve al flujo de verificación.' },
+                        numero_control: { type: 'string', description: 'Disponible únicamente para alumnos.' },
+                        clave_docente: { type: 'string', description: 'Debe existir y encontrarse libre. Disponible únicamente para docentes.' },
+                        periodo_ingreso_id: { type: 'integer', description: 'Disponible únicamente para alumnos sin inscripciones incompatibles en el ciclo activo.' },
+                        nueva_clave: { type: 'string', format: 'password', minLength: 8 },
+                        confirmar_clave: { type: 'string', format: 'password' },
+                        clave_actual: { type: 'string', format: 'password' }
                     }
                 },
                 Curso: {
@@ -159,10 +174,15 @@ export const crearDocumentacionSwagger = () => ({
             },
             '/perfil/docentes/{id}': { get: { tags: ['Perfil'], summary: 'Consultar un perfil docente del directorio', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }], responses: { 200: respuesta('Perfil docente no sensible') } } },
             '/perfil/alumnos/{id}': { get: { tags: ['Perfil'], summary: 'Consultar un perfil de alumno con privacidad según el rol', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }], responses: { 200: respuesta('Perfil protegido del alumno') } } },
+            '/configuracion': {
+                get: { tags: ['Configuración'], summary: 'Consultar datos sensibles y opciones permitidas de la cuenta', security: seguridad, responses: { 200: respuesta('Configuración según el rol') } },
+                patch: { tags: ['Configuración'], summary: 'Actualizar correo, identificador académico o contraseña', description: 'Todos los cambios requieren la contraseña actual. Un correo nuevo invalida la sesión y exige verificar la cuenta otra vez.', security: seguridad, requestBody: json({ $ref: '#/components/schemas/ConfiguracionCuenta' }), responses: { 200: respuesta('Configuración actualizada'), 401: respuesta('Contraseña actual incorrecta'), 409: respuesta('Dato ocupado o cambio incompatible') } }
+            },
             '/academico/docentes': { get: { tags: ['Académico'], summary: 'Listar docentes con paginación', security: seguridad, parameters: [{ in: 'query', name: 'pagina', schema: { type: 'integer' } }, { in: 'query', name: 'limite', schema: { type: 'integer' } }], responses: { 200: respuesta('Listado de docentes') } } },
-            '/academico/alumnos': { get: { tags: ['Académico'], summary: 'Listar alumnos aplicando privacidad según el rol', security: seguridad, responses: { 200: respuesta('Listado protegido de alumnos') } } },
+            '/academico/alumnos': { get: { tags: ['Académico'], summary: 'Listar alumnos aplicando privacidad según el rol', description: 'Los docentes reciben el estado de reprobación del ciclo activo. Los alumnos no reciben correos ajenos y ven números de control enmascarados.', security: seguridad, responses: { 200: respuesta('Listado protegido de alumnos') } } },
+            '/academico/alumnos/{id}/reprobacion': { patch: { tags: ['Académico'], summary: 'Aplicar o retirar la reprobación del alumno en el ciclo activo', description: 'Cada reprobación semestral descuenta un avance al calcular el grupo del siguiente ciclo.', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }], requestBody: json({ type: 'object', required: ['reprobado'], properties: { reprobado: { type: 'boolean' }, motivo: { type: 'string' } } }), responses: { 200: respuesta('Estado actualizado'), 404: respuesta('Alumno o ciclo activo no encontrado') } } },
             '/academico/materias': {
-                get: { tags: ['Académico'], summary: 'Listar materias y docentes asignados', security: seguridad, responses: { 200: respuesta('Listado de materias') } },
+                get: { tags: ['Académico'], summary: 'Listar materias y docentes asignados', description: 'Por defecto devuelve el ciclo activo. Los docentes pueden usar scope=all para consultar el historial.', security: seguridad, parameters: [{ in: 'query', name: 'scope', schema: { type: 'string', enum: ['active', 'all'] } }], responses: { 200: respuesta('Listado de materias') } },
                 post: { tags: ['Académico'], summary: 'Crear una materia y sus asignaciones docentes', security: seguridad, requestBody: json({ $ref: '#/components/schemas/Materia' }), responses: { 201: respuesta('Materia creada'), 403: respuesta('Solo docentes') } }
             },
             '/academico/materias/{id}': { patch: { tags: ['Académico'], summary: 'Editar una materia y sus asignaciones', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }], requestBody: json({ $ref: '#/components/schemas/Materia' }), responses: { 200: respuesta('Materia actualizada') } } },
@@ -171,14 +191,17 @@ export const crearDocumentacionSwagger = () => ({
                 post: { tags: ['Académico'], summary: 'Guardar ciclo de ingreso y grupo actual', security: seguridad, requestBody: json({ type: 'object', required: ['periodo_ingreso_id', 'grupo_id'], properties: { periodo_ingreso_id: { type: 'integer' }, grupo_id: { type: 'integer' } } }), responses: { 200: respuesta('Configuración completada') } }
             },
             '/cursos': {
-                get: { tags: ['Cursos'], summary: 'Listar cursos visibles del ciclo escolar activo', security: seguridad, responses: { 200: respuesta('Cursos paginados del semestre actual') } },
+                get: { tags: ['Cursos'], summary: 'Listar cursos visibles', description: 'Por defecto devuelve el ciclo activo. Los docentes pueden usar scope=all para consultar todos los ciclos.', security: seguridad, parameters: [{ in: 'query', name: 'scope', schema: { type: 'string', enum: ['active', 'all'] } }], responses: { 200: respuesta('Cursos paginados') } },
                 post: { tags: ['Cursos'], summary: 'Crear un curso para una materia y grupo del ciclo activo', security: seguridad, requestBody: json({ $ref: '#/components/schemas/Curso' }), responses: { 201: respuesta('Curso creado') } }
             },
-            '/cursos/opciones': { get: { tags: ['Cursos'], summary: 'Obtener materias y grupos disponibles para crear cursos', security: seguridad, responses: { 200: respuesta('Opciones de curso') } } },
-            '/cursos/{id}': { get: { tags: ['Cursos'], summary: 'Obtener unidades y actividades de un curso autorizado', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }], responses: { 200: respuesta('Detalle del curso'), 403: respuesta('Inscripción requerida') } } },
+            '/cursos/opciones': { get: { tags: ['Cursos'], summary: 'Obtener materias y grupos disponibles para crear o editar cursos', security: seguridad, parameters: [{ in: 'query', name: 'scope', schema: { type: 'string', enum: ['active', 'all'] } }], responses: { 200: respuesta('Opciones de curso') } } },
+            '/cursos/{id}': {
+                get: { tags: ['Cursos'], summary: 'Obtener unidades y actividades de un curso autorizado', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }], responses: { 200: respuesta('Detalle del curso'), 403: respuesta('Inscripción requerida') } },
+                patch: { tags: ['Cursos'], summary: 'Editar materia, grupo, ciclo y docentes de un curso vacío', description: 'No permite mover el curso cuando ya contiene inscripciones, actividades o celdas de horario.', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }], requestBody: json({ $ref: '#/components/schemas/Curso' }), responses: { 200: respuesta('Curso actualizado'), 409: respuesta('El curso ya tiene historial académico') } }
+            },
             '/cursos/{id}/inscripcion': { post: { tags: ['Cursos'], summary: 'Inscribirse en un curso del grupo propio', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }], responses: { 201: respuesta('Inscripción completada'), 403: respuesta('Grupo incompatible') } } },
             '/cursos/{id}/alumnos': { get: { tags: ['Cursos'], summary: 'Listar alumnos inscritos en un curso administrado', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }], responses: { 200: respuesta('Alumnos inscritos') } } },
-            '/cursos/{id}/actividades': { post: { tags: ['Actividades'], summary: 'Crear actividad con unidad, rúbricas y hasta cinco materiales', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }], requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', required: ['unidad_curso_id', 'titulo', 'fecha_cierre', 'valor_maximo'], properties: { unidad_curso_id: { type: 'integer' }, titulo: { type: 'string' }, descripcion: { type: 'string' }, fecha_inicio: { type: 'string', format: 'date-time' }, fecha_cierre: { type: 'string', format: 'date-time' }, valor_maximo: { type: 'number' }, rubricas: { type: 'string', description: 'Arreglo JSON de rúbricas' }, archivos: { type: 'array', maxItems: 5, items: { type: 'string', format: 'binary' } } } } } } }, responses: { 201: respuesta('Actividad creada'), 400: respuesta('Archivo o datos inválidos'), 503: respuesta('Storage no disponible o sin permisos') } } },
+            '/cursos/{id}/actividades': { post: { tags: ['Actividades'], summary: 'Crear actividad con unidad, rúbricas y hasta cinco materiales', description: 'Solo admite modificaciones cuando el curso pertenece al ciclo activo.', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }], requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', required: ['unidad_curso_id', 'titulo', 'fecha_cierre', 'valor_maximo'], properties: { unidad_curso_id: { type: 'integer' }, titulo: { type: 'string' }, descripcion: { type: 'string' }, fecha_inicio: { type: 'string', format: 'date-time' }, fecha_cierre: { type: 'string', format: 'date-time' }, valor_maximo: { type: 'number' }, rubricas: { type: 'string', description: 'Arreglo JSON de rúbricas' }, archivos: { type: 'array', maxItems: 5, items: { type: 'string', format: 'binary' } } } } } } }, responses: { 201: respuesta('Actividad creada'), 400: respuesta('Archivo o datos inválidos'), 409: respuesta('Curso de un ciclo inactivo'), 503: respuesta('Storage no disponible o sin permisos') } } },
             '/cursos/{id}/actividades/{actividadId}': { get: { tags: ['Actividades'], summary: 'Obtener actividad, rúbricas y enlaces temporales de materiales', security: seguridad, parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'integer' } }, { in: 'path', name: 'actividadId', required: true, schema: { type: 'integer' } }], responses: { 200: respuesta('Detalle de actividad') } } },
             '/horarios/configuracion': { get: { tags: ['Horarios'], summary: 'Obtener ciclo activo, módulos y grupos visibles', security: seguridad, responses: { 200: respuesta('Configuración de horarios según el rol') } } },
             '/horarios/periodo-activo': { patch: { tags: ['Horarios'], summary: 'Establecer el ciclo escolar activo', description: 'Cierra cursos de otros ciclos, habilita los del ciclo seleccionado, genera historiales faltantes y crea módulos predeterminados cuando sea necesario.', security: seguridad, requestBody: json({ type: 'object', required: ['periodo_id'], properties: { periodo_id: { type: 'integer' } } }), responses: { 200: respuesta('Ciclo activo actualizado') } } },

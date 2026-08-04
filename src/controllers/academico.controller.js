@@ -2,12 +2,14 @@ import { Op, QueryTypes } from 'sequelize';
 import sequelize from '../configs/database.config.js';
 import {
     Alumno,
+    Curso,
     Docente,
     Grupo,
     HistorialInscripcion,
     Materia,
     MateriaActiva,
-    PeriodoEscolar
+    PeriodoEscolar,
+    ReprobacionAlumno
 } from '../models/index.js';
 
 const REGISTROS_POR_PAGINA = 10;
@@ -208,6 +210,10 @@ const obtenerMateriaCompleta = async (materiaId, transaction = null) => {
                 as: 'docente',
                 attributes: ['id', 'nombre']
             }]
+        }, {
+            model: PeriodoEscolar,
+            as: 'periodo',
+            attributes: ['id', 'nombre_ciclo', 'activo']
         }],
         transaction
     });
@@ -262,6 +268,14 @@ export const listarAlumnos = async (req, res) => {
             offset
         });
         const esDocente = req.usuario.tipo === 'docente';
+        const periodoActivo = await PeriodoEscolar.findOne({ where: { activo: true }, attributes: ['id'] });
+        const reprobaciones = esDocente && periodoActivo && rows.length
+            ? await ReprobacionAlumno.findAll({
+                where: { alumno_id: { [Op.in]: rows.map((alumno) => alumno.id) }, periodo_id: periodoActivo.id },
+                attributes: ['alumno_id', 'motivo']
+            })
+            : [];
+        const reprobacionesPorAlumno = new Map(reprobaciones.map((registro) => [String(registro.alumno_id), registro]));
         const alumnos = rows.map((alumno) => {
             const datos = alumno.toJSON();
             const esPerfilPropio = String(datos.id) === String(req.usuario.id);
@@ -274,7 +288,9 @@ export const listarAlumnos = async (req, res) => {
                     ? datos.numero_control
                     : ocultarNumeroControl(datos.numero_control),
                 ciclo_ingreso: datos.periodoIngreso?.nombre_ciclo || 'Pendiente',
-                esPerfilPropio
+                esPerfilPropio,
+                reprobado: esDocente ? reprobacionesPorAlumno.has(String(datos.id)) : undefined,
+                motivo_reprobacion: esDocente ? reprobacionesPorAlumno.get(String(datos.id))?.motivo || null : undefined
             };
         });
 
@@ -496,13 +512,17 @@ METODO PARA LISTAR MATERIAS Y DOCENTES ASIGNADOS DE MANERA PAGINADA
 export const listarMaterias = async (req, res) => {
     try {
         const { pagina, limite, offset } = obtenerPaginacion(req.query);
+        const periodoActivo = await PeriodoEscolar.findOne({ where: { activo: true } });
+        const mostrarTodas = req.usuario.tipo === 'docente' && req.query.scope === 'all';
         const { count, rows } = await Materia.findAndCountAll({
             attributes: [
                 'id',
                 'nombre',
                 'grado_semestre',
-                'horas_semanales'
+                'horas_semanales',
+                'periodo_id'
             ],
+            where: mostrarTodas ? {} : periodoActivo ? { periodo_id: periodoActivo.id } : { id: -1 },
             include: [{
                 model: MateriaActiva,
                 as: 'asignaciones',
@@ -512,6 +532,10 @@ export const listarMaterias = async (req, res) => {
                     as: 'docente',
                     attributes: ['id', 'nombre']
                 }]
+            }, {
+                model: PeriodoEscolar,
+                as: 'periodo',
+                attributes: ['id', 'nombre_ciclo', 'activo']
             }],
             distinct: true,
             order: [
@@ -523,8 +547,14 @@ export const listarMaterias = async (req, res) => {
         });
 
         return res.status(200).json({
-            materias: rows,
+            materias: rows.map((materia) => ({
+                ...materia.toJSON(),
+                estado_ciclo: materia.periodo?.activo ? 'Activo' : 'Inactivo'
+            })),
             puedeEditar: req.usuario.tipo === 'docente',
+            periodos: req.usuario.tipo === 'docente'
+                ? await PeriodoEscolar.findAll({ attributes: ['id', 'nombre_ciclo', 'activo'], order: [['fecha_inicio', 'DESC']] })
+                : [],
             paginacion: construirPaginacion(count, pagina, limite)
         });
     } catch (error) {
@@ -555,6 +585,11 @@ export const crearMateria = async (req, res) => {
     try {
         transaction = await sequelize.transaction();
 
+        const periodoActivo = await PeriodoEscolar.findOne({ where: { activo: true }, transaction });
+        if (!periodoActivo) {
+            await transaction.rollback();
+            return res.status(409).json({ mensaje: 'No existe un ciclo escolar activo para la materia' });
+        }
         const docentesValidos = await validarExistenciaDocentes(
             docenteIds,
             transaction
@@ -568,7 +603,7 @@ export const crearMateria = async (req, res) => {
         }
 
         const materia = await Materia.create(
-            validacion.cambios,
+            { ...validacion.cambios, periodo_id: periodoActivo.id },
             { transaction }
         );
 
@@ -629,6 +664,7 @@ export const actualizarMateria = async (req, res) => {
     if (
         Object.keys(validacion.cambios).length === 0
         && !actualizarDocentes
+        && req.body.periodo_id === undefined
     ) {
         return res.status(400).json({
             mensaje: 'No se recibieron cambios para la materia'
@@ -664,6 +700,26 @@ export const actualizarMateria = async (req, res) => {
             }
         }
 
+        const periodoId = req.body.periodo_id !== undefined ? normalizarId(req.body.periodo_id) : null;
+        if (req.body.periodo_id !== undefined && !periodoId) {
+            await transaction.rollback();
+            return res.status(400).json({ mensaje: 'El ciclo seleccionado no es válido' });
+        }
+        if (periodoId && String(periodoId) !== String(materia.periodo_id)) {
+            const [periodo, cursosAsociados] = await Promise.all([
+                PeriodoEscolar.findByPk(periodoId, { transaction }),
+                Curso.count({ where: { materia_id: materia.id }, transaction })
+            ]);
+            if (!periodo) {
+                await transaction.rollback();
+                return res.status(404).json({ mensaje: 'El ciclo escolar no existe' });
+            }
+            if (cursosAsociados) {
+                await transaction.rollback();
+                return res.status(409).json({ mensaje: 'La materia ya tiene cursos. Crea una nueva versión para cambiarla de ciclo sin alterar su historial.' });
+            }
+            validacion.cambios.periodo_id = periodo.id;
+        }
         if (Object.keys(validacion.cambios).length > 0) {
             if (validacion.cambios.horas_semanales !== undefined) {
                 const [ocupacion] = await sequelize.query(`
@@ -726,5 +782,42 @@ export const actualizarMateria = async (req, res) => {
         return res.status(500).json({
             mensaje: 'Error interno del servidor al actualizar la materia'
         });
+    }
+};
+
+/* ------------------------------------------------------------------------------------------
+METODO PARA APLICAR O RETIRAR LA REPROBACION DEL ALUMNO EN EL CICLO ACTIVO
+------------------------------------------------------------------------------------------ */
+
+export const actualizarReprobacionAlumno = async (req, res) => {
+    const alumnoId = normalizarId(req.params.id);
+    const reprobado = req.body.reprobado === true;
+    if (!alumnoId) return res.status(400).json({ mensaje: 'El alumno no es válido' });
+
+    try {
+        const [alumno, periodo] = await Promise.all([
+            Alumno.findByPk(alumnoId),
+            PeriodoEscolar.findOne({ where: { activo: true } })
+        ]);
+        if (!alumno || !periodo) return res.status(404).json({ mensaje: 'Alumno o ciclo activo no encontrado' });
+        if (reprobado) {
+            const [registro] = await ReprobacionAlumno.findOrCreate({
+                where: { alumno_id: alumno.id, periodo_id: periodo.id },
+                defaults: {
+                    aplicado_por_docente_id: req.usuario.id,
+                    motivo: normalizarTexto(req.body.motivo).slice(0, 250) || null
+                }
+            });
+            await registro.update({
+                aplicado_por_docente_id: req.usuario.id,
+                motivo: normalizarTexto(req.body.motivo).slice(0, 250) || null
+            });
+            return res.status(200).json({ mensaje: 'Alumno marcado como reprobado para el ciclo activo', reprobado: true });
+        }
+        await ReprobacionAlumno.destroy({ where: { alumno_id: alumno.id, periodo_id: periodo.id } });
+        return res.status(200).json({ mensaje: 'Reprobación retirada correctamente', reprobado: false });
+    } catch (error) {
+        console.error('Error al actualizar reprobación del alumno:', error.message || error);
+        return res.status(500).json({ mensaje: 'No fue posible actualizar la reprobación del alumno' });
     }
 };

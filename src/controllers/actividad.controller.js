@@ -51,6 +51,9 @@ export const crearActividad = async (req, res) => {
         if (!acceso.autorizado || !acceso.esDocente) {
             return res.status(403).json({ mensaje: 'No administras este curso' });
         }
+        if (!acceso.cicloActivo) {
+            return res.status(409).json({ mensaje: 'Las actividades solo pueden modificarse cuando el ciclo del curso está activo' });
+        }
         const unidad = await UnidadCurso.findOne({
             where: { id: req.body.unidad_curso_id, curso_id: acceso.curso.id }
         });

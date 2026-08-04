@@ -18,6 +18,7 @@ import ArchivoActividad from './ArchivoActividad.model.js';
 import CalificacionActividad from './CalificacionActividad.model.js';
 import CalificacionRubrica from './CalificacionRubrica.model.js';
 import ClaveDocente from './ClaveRegistro.model.js';
+import ReprobacionAlumno from './ReprobacionAlumno.model.js';
 
 /* ------------------------------------------------------------------------------------------
 ASOCIACIONES ENTRE MODELOS DE IDENTIDAD Y CONFIGURACION ACADEMICA
@@ -35,6 +36,14 @@ Grupo.hasMany(HistorialInscripcion, { foreignKey: 'grupo_id', as: 'inscripciones
 HistorialInscripcion.belongsTo(Grupo, { foreignKey: 'grupo_id', as: 'grupo' });
 PeriodoEscolar.hasMany(HistorialInscripcion, { foreignKey: 'periodo_id', as: 'inscripciones' });
 HistorialInscripcion.belongsTo(PeriodoEscolar, { foreignKey: 'periodo_id', as: 'periodo' });
+Alumno.hasMany(ReprobacionAlumno, { foreignKey: 'alumno_id', as: 'reprobaciones' });
+ReprobacionAlumno.belongsTo(Alumno, { foreignKey: 'alumno_id', as: 'alumno' });
+PeriodoEscolar.hasMany(ReprobacionAlumno, { foreignKey: 'periodo_id', as: 'reprobaciones' });
+ReprobacionAlumno.belongsTo(PeriodoEscolar, { foreignKey: 'periodo_id', as: 'periodo' });
+Docente.hasMany(ReprobacionAlumno, { foreignKey: 'aplicado_por_docente_id', as: 'reprobacionesAplicadas' });
+ReprobacionAlumno.belongsTo(Docente, { foreignKey: 'aplicado_por_docente_id', as: 'aplicadoPor' });
+PeriodoEscolar.hasMany(Materia, { foreignKey: 'periodo_id', as: 'materias' });
+Materia.belongsTo(PeriodoEscolar, { foreignKey: 'periodo_id', as: 'periodo' });
 Materia.hasMany(MateriaActiva, { foreignKey: 'materia_id', as: 'asignaciones' });
 MateriaActiva.belongsTo(Materia, { foreignKey: 'materia_id', as: 'materia' });
 Docente.hasMany(MateriaActiva, { foreignKey: 'docente_id', as: 'asignaciones' });
@@ -104,5 +113,5 @@ export {
     ClaveDocente, Docente, Alumno, Materia, PeriodoEscolar, Grupo,
     HistorialInscripcion, MateriaActiva, Curso, DocenteCurso, UnidadCurso,
     InscripcionMateria, Horario, ModuloHorario, Asistencia, Actividad, RubricaActividad,
-    ArchivoActividad, CalificacionActividad, CalificacionRubrica
+    ArchivoActividad, CalificacionActividad, CalificacionRubrica, ReprobacionAlumno
 };

@@ -1,6 +1,7 @@
 import express from 'express';
 import {
     actualizarMateria,
+    actualizarReprobacionAlumno,
     completarConfiguracionInicial,
     crearMateria,
     listarAlumnos,
@@ -23,6 +24,7 @@ RUTAS PROTEGIDAS PARA LOS LISTADOS ACADEMICOS
 router.get('/docentes', validarAuth, listarDocentes);
 router.get('/alumnos', validarAuth, listarAlumnos);
 router.get('/materias', validarAuth, listarMaterias);
+router.patch('/alumnos/:id/reprobacion', validarAuth, validarDocente, actualizarReprobacionAlumno);
 
 /* --------------------------------------------------------
 RUTAS PROTEGIDAS PARA LA CONFIGURACION INICIAL DEL ALUMNO

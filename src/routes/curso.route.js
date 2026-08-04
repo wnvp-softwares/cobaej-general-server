@@ -1,5 +1,6 @@
 import express from 'express';
 import {
+    actualizarCurso,
     crearCurso,
     inscribirseCurso,
     listarAlumnosCurso,
@@ -47,6 +48,7 @@ RUTAS PARA CONSULTAR, CREAR E INSCRIBIRSE A CURSOS
 router.get('/', validarAuth, listarCursos);
 router.get('/opciones', validarAuth, validarDocente, obtenerOpcionesCurso);
 router.post('/', validarAuth, validarDocente, crearCurso);
+router.patch('/:id', validarAuth, validarDocente, actualizarCurso);
 router.post('/:id/inscripcion', validarAuth, validarAlumno, inscribirseCurso);
 router.get('/:id', validarAuth, obtenerCurso);
 router.get('/:id/alumnos', validarAuth, validarDocente, listarAlumnosCurso);

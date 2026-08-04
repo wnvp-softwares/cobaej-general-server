@@ -66,6 +66,10 @@ export const guardarCalificacionActividad = async (req, res) => {
             await transaction.rollback();
             return res.status(403).json({ mensaje: 'No administras este curso' });
         }
+        if (!acceso.cicloActivo) {
+            await transaction.rollback();
+            return res.status(409).json({ mensaje: 'Las calificaciones solo pueden modificarse cuando el ciclo del curso está activo' });
+        }
         const puntos = Number(req.body.puntos_obtenidos);
         if (!Number.isFinite(puntos) || puntos < 0 || puntos > Number(actividad.valor_maximo)) {
             await transaction.rollback();

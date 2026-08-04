@@ -1,4 +1,5 @@
 import { verificarToken } from '../services/jwt.service.js';
+import { Alumno, Docente } from '../models/index.js';
 
 /* ------------------------------------------------------------------------------------------
 METODO PARA EXTRAER EL TOKEN BEARER DE UNA PETICION
@@ -18,7 +19,7 @@ const extraerToken = (req) => {
 METODO PARA VALIDAR TOKENS DE SESION AUTENTICADA
 ------------------------------------------------------------------------------------------ */
 
-export const validarAuth = (req, res, next) => {
+export const validarAuth = async (req, res, next) => {
     const token = extraerToken(req);
 
     if (!token) {
@@ -32,6 +33,24 @@ export const validarAuth = (req, res, next) => {
     if (!decoded || decoded.scope !== 'auth') {
         return res.status(401).json({
             mensaje: 'El token de autenticación es inválido o expiró'
+        });
+    }
+
+    const Modelo = decoded.tipo === 'docente' ? Docente : decoded.tipo === 'alumno' ? Alumno : null;
+    let usuario;
+    try {
+        usuario = Modelo ? await Modelo.findByPk(decoded.id, { attributes: ['id', 'verificado'] }) : null;
+    } catch (error) {
+        console.error('Error al validar la cuenta asociada al token:', error.message || error);
+        return res.status(503).json({ mensaje: 'No fue posible validar la sesión en este momento' });
+    }
+    if (!usuario) {
+        return res.status(401).json({ mensaje: 'La cuenta asociada al token ya no existe' });
+    }
+    if (!usuario.verificado) {
+        return res.status(403).json({
+            mensaje: 'La cuenta requiere verificación de correo',
+            verificationRequired: true
         });
     }
 

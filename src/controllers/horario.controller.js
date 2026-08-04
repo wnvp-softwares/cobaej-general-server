@@ -97,6 +97,14 @@ const sincronizarAlumnosPeriodo = async (periodoId, transaction) => {
             ORDER BY periodo_historial.fecha_inicio DESC
             LIMIT 1
         ) AS ultimo_grupo ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT COUNT(*)::INT AS total
+            FROM reprobaciones_alumnos AS reprobacion
+            INNER JOIN periodos_escolares AS periodo_reprobado
+                ON periodo_reprobado.id = reprobacion.periodo_id
+            WHERE reprobacion.alumno_id = alumno.id
+              AND periodo_reprobado.fecha_inicio < periodo_actual.fecha_inicio
+        ) AS reprobaciones_previas ON TRUE
         INNER JOIN grupos AS grupo
             ON grupo.periodo_id = periodo_actual.id
             AND grupo.grado_semestre::TEXT = (
@@ -105,6 +113,7 @@ const sincronizarAlumnosPeriodo = async (periodoId, transaction) => {
                 - (periodo_ingreso.anio * 2
                     + CASE WHEN periodo_ingreso.nombre_periodo = 'Agosto-Diciembre' THEN 1 ELSE 0 END)
                 + 1
+                - COALESCE(reprobaciones_previas.total, 0)
             )::TEXT
             AND grupo.division = COALESCE(ultimo_grupo.division, 'A')
         WHERE (
@@ -113,6 +122,7 @@ const sincronizarAlumnosPeriodo = async (periodoId, transaction) => {
             - (periodo_ingreso.anio * 2
                 + CASE WHEN periodo_ingreso.nombre_periodo = 'Agosto-Diciembre' THEN 1 ELSE 0 END)
             + 1
+            - COALESCE(reprobaciones_previas.total, 0)
         ) BETWEEN 1 AND 6
         ON CONFLICT (alumno_id, periodo_id) DO NOTHING
     `, {
